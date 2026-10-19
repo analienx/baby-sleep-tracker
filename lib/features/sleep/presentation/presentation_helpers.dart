@@ -3,10 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/emulator_bootstrap.dart';
+import '../../../app/family_bootstrap.dart';
 import '../../../app/providers.dart';
 import '../../../app/theme.dart';
 import '../../../l10n/app_localizations.dart';
-import '../domain/sleep_repository.dart';
+import 'storage_copy.dart';
+
+StorageEnvironment get appStorageEnvironment {
+  if (useFamilyProduction) return StorageEnvironment.familyCloud;
+  if (useFamilyEmulator) return StorageEnvironment.familyEmulator;
+  if (useFirebaseEmulator) return StorageEnvironment.legacyEmulator;
+  return StorageEnvironment.volatilePreview;
+}
+
+final storageEnvironmentProvider = Provider<StorageEnvironment>(
+  (ref) => appStorageEnvironment,
+);
 
 String formatClockDuration(Duration duration) {
   final value = duration.isNegative ? Duration.zero : duration;
@@ -88,23 +100,12 @@ class PreviewWarning extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(sleepStorageProvider);
-    final message = !useFirebaseEmulator
-        ? 'Preview only — entries are not saved and will disappear on restart.'
-        : state.when(
-            data: (value) => switch (value.phase) {
-              StoragePhase.opening => 'Opening on-device cache…',
-              StoragePhase.cached =>
-                'Cached on device. Server sync cannot be verified right now.',
-              StoragePhase.pending => 'Pending sync — visible in local cache, not confirmed by server. Do not uninstall.',
-              StoragePhase.synced =>
-                'Synced with local development emulator. Synthetic data only.',
-              StoragePhase.failed =>
-                'Storage/sync error. Do not assume this change was saved.',
-              StoragePhase.preview => 'Preview only — not saved.',
-            },
-            error: (_, _) => 'Storage error. Do not assume data was saved.',
-            loading: () => 'Opening on-device cache…',
-          );
+    final environment = ref.watch(storageEnvironmentProvider);
+    final message = state.when(
+      data: (status) => storageMessage(environment, status),
+      loading: () => storageMessage(environment, null),
+      error: (_, _) => 'Storage error. Do not assume this change was synced.',
+    );
     return Semantics(
       label: message,
       excludeSemantics: true,
@@ -149,18 +150,18 @@ class PageContainer extends StatelessWidget {
   );
 }
 
-class _PreviewBadge extends StatelessWidget {
+class _PreviewBadge extends ConsumerWidget {
   const _PreviewBadge();
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context, WidgetRef ref) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(100),
       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
     ),
     child: Text(
-      useFirebaseEmulator ? 'EMULATOR' : 'PREVIEW',
+      storageBadge(ref.watch(storageEnvironmentProvider)),
       style: Theme.of(context).textTheme.labelSmall
           ?.copyWith(letterSpacing: 1, fontWeight: FontWeight.w700),
     ),

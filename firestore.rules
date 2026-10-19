@@ -1,43 +1,103 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Development-only sandbox. Do not deploy these rules to a real project:
-    // family membership + trusted invites are deliberately deferred to F2.
-    match /dev_users/{userId}/operations/{operationId} {
-      function isOwner() {
-        return request.auth != null && request.auth.uid == userId;
-      }
-
-      function validOperation() {
-        let d = request.resource.data;
-        return d.keys().hasOnly([
-          'schemaVersion', 'actorId', 'sessionId', 'parentIds', 'deleted',
-          'recordedAtUtc', 'startedAtUtc', 'endedAtUtc'
-        ])
-        && d.keys().hasAll([
-          'schemaVersion', 'actorId', 'sessionId', 'parentIds', 'deleted',
-          'recordedAtUtc', 'startedAtUtc', 'endedAtUtc'
-        ])
-        && d.schemaVersion == 1
-        && d.actorId == userId
-        && d.sessionId is string && d.sessionId.size() > 0
-        && d.sessionId.size() <= 128
-        && d.parentIds is list && d.parentIds.size() <= 20
-        && d.deleted is bool
-        && d.recordedAtUtc is timestamp
-        && d.startedAtUtc is timestamp
-        && (d.endedAtUtc == null ||
-          (d.endedAtUtc is timestamp
-            && d.endedAtUtc > d.startedAtUtc
-            && d.endedAtUtc - d.startedAtUtc <= duration.value(24, 'h')));
-      }
-
-      allow read: if isOwner();
-      allow create: if isOwner() && validOperation();
-      allow update, delete: if false; // Immutable audit trail.
+    function signedIn() {
+      return request.auth != null;
+    }
+    function memberPath(familyId) {
+      return /databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid);
+    }
+    function familyPath(familyId) {
+      return /databases/$(database)/documents/families/$(familyId);
+    }
+    function isMember(familyId) {
+      // Marking deletion immediately fences every mobile client, including
+      // devices still holding stale membership documents in their cache.
+      return signedIn() && exists(familyPath(familyId))
+        && get(familyPath(familyId)).data.get('deleting', false) != true
+        && exists(memberPath(familyId));
+    }
+    // Rules lists have no generic type parameters: check every allowed index.
+    // Parent *existence* is validated by the reader, not here: ancestors may
+    // still be pending locally during an offline replay.
+    function validParentIds(ids, opId) {
+      return ids is list && ids.size() <= 20 && ids.toSet().size() == ids.size()
+        && (ids.size() <= 0 || (ids[0] is string && ids[0].size() > 0 && ids[0].size() <= 128 && ids[0] != opId))
+        && (ids.size() <= 1 || (ids[1] is string && ids[1].size() > 0 && ids[1].size() <= 128 && ids[1] != opId))
+        && (ids.size() <= 2 || (ids[2] is string && ids[2].size() > 0 && ids[2].size() <= 128 && ids[2] != opId))
+        && (ids.size() <= 3 || (ids[3] is string && ids[3].size() > 0 && ids[3].size() <= 128 && ids[3] != opId))
+        && (ids.size() <= 4 || (ids[4] is string && ids[4].size() > 0 && ids[4].size() <= 128 && ids[4] != opId))
+        && (ids.size() <= 5 || (ids[5] is string && ids[5].size() > 0 && ids[5].size() <= 128 && ids[5] != opId))
+        && (ids.size() <= 6 || (ids[6] is string && ids[6].size() > 0 && ids[6].size() <= 128 && ids[6] != opId))
+        && (ids.size() <= 7 || (ids[7] is string && ids[7].size() > 0 && ids[7].size() <= 128 && ids[7] != opId))
+        && (ids.size() <= 8 || (ids[8] is string && ids[8].size() > 0 && ids[8].size() <= 128 && ids[8] != opId))
+        && (ids.size() <= 9 || (ids[9] is string && ids[9].size() > 0 && ids[9].size() <= 128 && ids[9] != opId))
+        && (ids.size() <= 10 || (ids[10] is string && ids[10].size() > 0 && ids[10].size() <= 128 && ids[10] != opId))
+        && (ids.size() <= 11 || (ids[11] is string && ids[11].size() > 0 && ids[11].size() <= 128 && ids[11] != opId))
+        && (ids.size() <= 12 || (ids[12] is string && ids[12].size() > 0 && ids[12].size() <= 128 && ids[12] != opId))
+        && (ids.size() <= 13 || (ids[13] is string && ids[13].size() > 0 && ids[13].size() <= 128 && ids[13] != opId))
+        && (ids.size() <= 14 || (ids[14] is string && ids[14].size() > 0 && ids[14].size() <= 128 && ids[14] != opId))
+        && (ids.size() <= 15 || (ids[15] is string && ids[15].size() > 0 && ids[15].size() <= 128 && ids[15] != opId))
+        && (ids.size() <= 16 || (ids[16] is string && ids[16].size() > 0 && ids[16].size() <= 128 && ids[16] != opId))
+        && (ids.size() <= 17 || (ids[17] is string && ids[17].size() > 0 && ids[17].size() <= 128 && ids[17] != opId))
+        && (ids.size() <= 18 || (ids[18] is string && ids[18].size() > 0 && ids[18].size() <= 128 && ids[18] != opId))
+        && (ids.size() <= 19 || (ids[19] is string && ids[19].size() > 0 && ids[19].size() <= 128 && ids[19] != opId));
+    }
+    function validOperation(opId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+        'schemaVersion', 'actorId', 'sessionId', 'parentIds', 'deleted',
+        'recordedAtUtc', 'startedAtUtc', 'endedAtUtc'
+      ])
+      && d.keys().hasAll([
+        'schemaVersion', 'actorId', 'sessionId', 'parentIds', 'deleted',
+        'recordedAtUtc', 'startedAtUtc', 'endedAtUtc'
+      ])
+      && d.schemaVersion == 1
+      && d.actorId == request.auth.uid
+      && d.sessionId is string && d.sessionId.size() > 0
+      && d.sessionId.size() <= 128
+      && validParentIds(d.parentIds, opId)
+      && (!d.deleted || d.parentIds.size() > 0)
+      && d.deleted is bool
+      && d.recordedAtUtc is timestamp
+      && d.startedAtUtc is timestamp
+      && (d.endedAtUtc == null ||
+        (d.endedAtUtc is timestamp && d.endedAtUtc > d.startedAtUtc &&
+         d.endedAtUtc - d.startedAtUtc <= duration.value(24, 'h')));
     }
 
-    match /{path=**} {
+    // All account/family/membership changes are server-only and transactional.
+    match /users/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+    match /families/{familyId} {
+      allow read: if isMember(familyId);
+      allow write: if false;
+      match /members/{uid} {
+        allow read: if isMember(familyId);
+        allow write: if false;
+      }
+      match /babies/{babyId} {
+        allow read: if isMember(familyId);
+        allow write: if false;
+        match /operations/{operationId} {
+          allow read: if isMember(familyId) &&
+            exists(/databases/$(database)/documents/families/$(familyId)/babies/$(babyId));
+          allow create: if isMember(familyId)
+            && exists(/databases/$(database)/documents/families/$(familyId)/babies/$(babyId))
+            && operationId.size() >= 1 && operationId.size() <= 128
+            && validOperation(operationId);
+          allow update, delete: if false;
+        }
+      }
+    }
+    // Invitation secrets never readable or editable by mobile clients.
+    match /familyInvites/{hash} {
+      allow read, write: if false;
+    }
+    match /{other=**} {
       allow read, write: if false;
     }
   }

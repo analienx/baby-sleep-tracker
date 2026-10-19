@@ -4,14 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/sleep_ledger.dart';
+import '../domain/sleep_archive.dart';
 import '../domain/sleep_repository.dart';
 import '../domain/sleep_session.dart';
 
-/// Emulator-only F1 repository, intentionally independent of the F2 household
-/// schema. Never use this path with a production Firebase project or child data.
+/// Immutable operation journal shared by the synthetic development adapter
+/// and the F2 private family scope. The legacy dev path must never be enabled
+/// against a production Firebase project.
 /// The authoritative record is the immutable operation collection: clients
 /// create unique documents instead of updating the same session document.
-final class FirestoreSleepRepository implements SleepRepository {
+final class FirestoreSleepRepository
+    implements SleepRepository, SleepArchiveSource {
   FirestoreSleepRepository({
     required FirebaseFirestore firestore,
     required String syntheticUserId,
@@ -22,9 +25,25 @@ final class FirestoreSleepRepository implements SleepRepository {
            .collection('operations'),
        _syntheticUserId = syntheticUserId,
        _newId = newId ?? const Uuid().v4 {
-    _subscription = _operations
-        .snapshots(includeMetadataChanges: true)
-        .listen(_onSnapshot, onError: _onError);
+    _subscribe();
+  }
+
+  /// Creates a household-scoped repository, with actor enforced by Rules.
+  FirestoreSleepRepository.family({
+    required FirebaseFirestore firestore,
+    required String familyId,
+    required String babyId,
+    required String actorId,
+    String Function()? newId,
+  }) : _operations = firestore
+           .collection('families')
+           .doc(familyId)
+           .collection('babies')
+           .doc(babyId)
+           .collection('operations'),
+       _syntheticUserId = actorId,
+       _newId = newId ?? const Uuid().v4 {
+    _subscribe();
   }
 
   final CollectionReference<Map<String, dynamic>> _operations;
@@ -38,8 +57,15 @@ final class FirestoreSleepRepository implements SleepRepository {
       StreamController.broadcast(sync: true);
   final Completer<void> _firstSnapshot = Completer<void>();
   final Map<String, Completer<void>> _localWrites = {};
-  late final StreamSubscription<QuerySnapshot<Map<String, dynamic>>>
-  _subscription;
+  late StreamSubscription<QuerySnapshot<Map<String, dynamic>>> _subscription;
+  Timer? _retryTimer;
+  bool _disposed = false;
+
+  void _subscribe() {
+    _subscription = _operations
+        .snapshots(includeMetadataChanges: true)
+        .listen(_onSnapshot, onError: _onError);
+  }
 
   List<SleepOperation> _lastOperations = const [];
   SleepLedgerResult _projection = const SleepLedgerResult(
@@ -47,30 +73,83 @@ final class FirestoreSleepRepository implements SleepRepository {
     conflicts: [],
   );
   SleepStorageStatus _status = const SleepStorageStatus(StoragePhase.opening);
-  Object? _error;
+  Object? _listenerError;
+  Object? _lastWriteError;
+  bool _hasSnapshot = false;
+  bool _fromCache = true;
+  bool _hasPendingWrites = false;
+  int _quarantineCount = 0;
+  List<String> _invalidDocumentIds = const [];
+
+  void _updateStatus() {
+    _status = _listenerError != null
+        ? const SleepStorageStatus(
+            StoragePhase.failed,
+            detail:
+                'Live updates unavailable. Showing last known history. '
+                'Check your connection and family access.',
+          )
+        : _quarantineCount > 0
+        ? SleepStorageStatus(
+            StoragePhase.failed,
+            detail:
+                '$_quarantineCount incomplete or invalid record group(s) '
+                'need attention. Other sleep records remain available.',
+          )
+        : _lastWriteError != null
+        ? const SleepStorageStatus(
+            StoragePhase.failed,
+            detail:
+                'A previous update was rejected by the server. '
+                'History remains available, but this change was not synced.',
+          )
+        : SleepStorageStatus(
+            _hasPendingWrites
+                ? StoragePhase.pending
+                : _fromCache
+                ? StoragePhase.cached
+                : StoragePhase.synced,
+          );
+    _storageChanges.add(_status);
+  }
 
   void _onSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
+    if (_disposed) return;
+    _retryTimer?.cancel();
+    _retryTimer = null;
     try {
-      final operations = <SleepOperation>[
-        for (final doc in snapshot.docs) _decode(doc.id, doc.data()),
-      ];
+      final operations = <SleepOperation>[];
+      final invalidDocumentIds = <String>[];
+      for (final doc in snapshot.docs) {
+        try {
+          operations.add(_decode(doc.id, doc.data()));
+        } on FormatException {
+          invalidDocumentIds.add(doc.id);
+        } on ArgumentError {
+          invalidDocumentIds.add(doc.id);
+        } on TypeError {
+          invalidDocumentIds.add(doc.id);
+        } on StateError {
+          invalidDocumentIds.add(doc.id);
+        }
+      }
+      // A bad document or a temporarily missing offline ancestor can never
+      // hide the rest of a family's timeline. Do not modify or delete bad ops:
+      // retain the immutable audit record for forensic repair.
       final projection = SleepLedger.project(operations);
       _lastOperations = operations;
+      _invalidDocumentIds = invalidDocumentIds;
       _projection = projection;
-      // A rejected queued write can disappear from subsequent snapshots.
-      // Keep its failure visible rather than mislabelling the rollback synced.
-      if (_error == null) {
-        _status = SleepStorageStatus(
-          snapshot.metadata.hasPendingWrites
-              ? StoragePhase.pending
-              : snapshot.metadata.isFromCache
-              ? StoragePhase.cached
-              : StoragePhase.synced,
-        );
-      }
+      _quarantineCount =
+          invalidDocumentIds.length + projection.quarantinedSessionIds.length;
+      _hasSnapshot = true;
+      _listenerError =
+          null; // Fresh snapshot recovers previous listener errors.
+      _fromCache = snapshot.metadata.isFromCache;
+      _hasPendingWrites = snapshot.metadata.hasPendingWrites;
+      _updateStatus();
       _sessionChanges.add(projection.sessions);
       _conflictChanges.add(projection.conflicts);
-      _storageChanges.add(_status);
       if (!_firstSnapshot.isCompleted) _firstSnapshot.complete();
 
       final observedIds = snapshot.docs.map((d) => d.id).toSet();
@@ -85,23 +164,33 @@ final class FirestoreSleepRepository implements SleepRepository {
     }
   }
 
+  void _onWriteError(Object error, StackTrace stack) {
+    _lastWriteError = error;
+    _updateStatus();
+  }
+
   void _onError(Object error, [StackTrace? stack]) {
-    _error = error;
-    _status = const SleepStorageStatus(
-      StoragePhase.failed,
-      detail:
-          'Storage or synchronization failed. Do not assume data was saved.',
-    );
-    _storageChanges.add(_status);
+    if (_disposed) return;
+    _listenerError = error;
+    _updateStatus();
+    if (!_firstSnapshot.isCompleted) _firstSnapshot.complete();
+    // The last valid projection remains accessible for readSessions().
+    // A subsequent valid snapshot clears the listener error.
     _sessionChanges.addError(error, stack);
     _conflictChanges.addError(error, stack);
-    if (!_firstSnapshot.isCompleted) {
-      _firstSnapshot.completeError(error, stack);
-    }
     for (final writer in _localWrites.values) {
       if (!writer.isCompleted) writer.completeError(error, stack);
     }
     _localWrites.clear();
+    // Terminal stream errors may close the Firestore subscription. Recreate
+    // it after a bounded delay; a good snapshot cancels the pending retry.
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(seconds: 3), () async {
+      if (_disposed) return;
+      await _subscription.cancel();
+      if (_disposed) return;
+      _subscribe();
+    });
   }
 
   SleepOperation _decode(String id, Map<String, dynamic> value) {
@@ -151,7 +240,7 @@ final class FirestoreSleepRepository implements SleepRepository {
       listener.add,
       onError: listener.addError,
     );
-    if (_firstSnapshot.isCompleted && _error == null) {
+    if (_hasSnapshot) {
       listener.add(_projection.sessions);
     }
     listener.onCancel = subscription.cancel;
@@ -170,7 +259,7 @@ final class FirestoreSleepRepository implements SleepRepository {
       listener.add,
       onError: listener.addError,
     );
-    if (_firstSnapshot.isCompleted && _error == null) {
+    if (_hasSnapshot) {
       listener.add(_projection.conflicts);
     }
     listener.onCancel = subscription.cancel;
@@ -179,8 +268,32 @@ final class FirestoreSleepRepository implements SleepRepository {
   @override
   Future<List<SleepSession>> readSessions() async {
     await _firstSnapshot.future;
-    if (_error != null) throw StateError('Sleep cache is unavailable.');
+    if (!_hasSnapshot) throw StateError('No sleep cache is available.');
     return _projection.sessions;
+  }
+
+  @override
+  Future<SleepArchive> readArchive() async {
+    await _firstSnapshot.future;
+    if (!_hasSnapshot) throw StateError('No sleep cache is available.');
+    // Copy all fields from the same immutable listener revision, before any
+    // later listener event can mutate the projection.
+    return SleepArchive(
+      sessions: List.unmodifiable(_projection.sessions),
+      operations: List.unmodifiable(_lastOperations),
+      conflicts: List.unmodifiable(_projection.conflicts),
+      quarantinedSessionIds: List.unmodifiable(
+        _projection.quarantinedSessionIds,
+      ),
+      invalidOperationIds: List.unmodifiable(_invalidDocumentIds),
+      hasJournal: true,
+      cloudConfirmed:
+          !_fromCache &&
+          !_hasPendingWrites &&
+          _listenerError == null &&
+          _lastWriteError == null &&
+          _quarantineCount == 0,
+    );
   }
 
   @override
@@ -269,13 +382,20 @@ final class FirestoreSleepRepository implements SleepRepository {
           .doc(id)
           .set(_encode(operation))
           .then(
-            (_) {},
+            (_) {
+              // Successful server acknowledgement of a later command may
+              // clear a previous rejected write. Cache metadata still controls
+              // whether an operation can be called synced.
+              _lastWriteError = null;
+              _updateStatus();
+            },
             onError: (Object error, StackTrace stack) {
               final pending = _localWrites.remove(id);
               if (pending != null && !pending.isCompleted) {
                 pending.completeError(error, stack);
               }
-              _onError(error, stack);
+              // A single denied write MUST NOT poison unrelated read access.
+              _onWriteError(error, stack);
             },
           ),
     );
@@ -287,6 +407,8 @@ final class FirestoreSleepRepository implements SleepRepository {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
+    _retryTimer?.cancel();
     await _subscription.cancel();
     await _sessionChanges.close();
     await _storageChanges.close();

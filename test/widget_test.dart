@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:baby_sleep_tracker/app/app.dart';
 import 'package:baby_sleep_tracker/app/providers.dart';
 import 'package:baby_sleep_tracker/app/theme.dart';
@@ -12,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:shared_preferences_platform_interface/types.dart';
 
 import 'support/fake_clock.dart';
 
@@ -158,6 +161,36 @@ void main() {
     expect(
       tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
       ThemeMode.system,
+    );
+  });
+
+  testWidgets('Rapid theme taps persist in the same order as the last choice', (
+    tester,
+  ) async {
+    final prefs = _SlowPreferences();
+    SharedPreferencesAsyncPlatform.instance = prefs;
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Settings and privacy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Light'));
+    await tester.pump();
+    await tester.tap(find.text('Dark'));
+    await tester.pump();
+    expect(prefs.startedWrites, 1, reason: 'Second write must be queued');
+    prefs.releaseFirst.complete();
+    await tester.pumpAndSettle();
+    expect(prefs.startedWrites, 2);
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
     );
   });
 
@@ -385,6 +418,60 @@ void main() {
     expect(repository.chosen, second);
   });
 
+  testWidgets('An older disputed nap never disables the current sleep action', (
+    tester,
+  ) async {
+    final disputed = SleepSession(
+      id: 'old-nap',
+      startedAtUtc: DateTime.utc(2026, 10, 18, 7),
+      endedAtUtc: DateTime.utc(2026, 10, 18, 8),
+    );
+    final conflict = SleepConflict(
+      sessionId: disputed.id,
+      heads: [
+        SleepOperation(
+          id: 'old-a',
+          actorId: 'one',
+          session: disputed,
+          recordedAtUtc: DateTime.utc(2026, 10, 18, 9),
+        ),
+        SleepOperation(
+          id: 'old-b',
+          actorId: 'two',
+          session: disputed.corrected(
+            startUtc: DateTime.utc(2026, 10, 18, 7, 5),
+            endUtc: DateTime.utc(2026, 10, 18, 8, 5),
+          ),
+          recordedAtUtc: DateTime.utc(2026, 10, 18, 9),
+        ),
+      ],
+      commonAncestor: null,
+    );
+    final active = SleepSession(
+      id: 'live-nap',
+      startedAtUtc: DateTime.utc(2026, 10, 19, 9, 30),
+      endedAtUtc: null,
+    );
+    final repository = _ConflictRepository(conflict, sessions: [active]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          clockProvider.overrideWithValue(
+            FakeClock(DateTime.utc(2026, 10, 19, 10)),
+          ),
+          sleepRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const BabySleepApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final action = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Wake up'),
+    );
+    expect(action.onPressed, isNotNull);
+    expect(find.textContaining('competing edit(s) preserved'), findsOneWidget);
+  });
+
   testWidgets('Invalid future correction is visible and cannot be saved', (
     tester,
   ) async {
@@ -535,17 +622,36 @@ void main() {
   }
 }
 
+base class _SlowPreferences extends InMemorySharedPreferencesAsync {
+  _SlowPreferences() : super.empty();
+
+  final Completer<void> releaseFirst = Completer<void>();
+  int startedWrites = 0;
+
+  @override
+  Future<bool> setString(
+    String key,
+    String value,
+    SharedPreferencesOptions options,
+  ) async {
+    startedWrites++;
+    if (startedWrites == 1) await releaseFirst.future;
+    return super.setString(key, value, options);
+  }
+}
+
 final class _ConflictRepository implements SleepRepository {
-  _ConflictRepository(this.conflict);
+  _ConflictRepository(this.conflict, {this.sessions = const []});
 
   final SleepConflict conflict;
+  final List<SleepSession> sessions;
   SleepSession? chosen;
 
   @override
-  Stream<List<SleepSession>> watchSessions() => Stream.value(const []);
+  Stream<List<SleepSession>> watchSessions() => Stream.value(sessions);
 
   @override
-  Future<List<SleepSession>> readSessions() async => const [];
+  Future<List<SleepSession>> readSessions() async => sessions;
 
   @override
   Stream<List<SleepConflict>> watchConflicts() => Stream.value([conflict]);

@@ -51,6 +51,8 @@ void main() {
     expect(week[4].recordedSleep, const Duration(minutes: 30));
     expect(week[5].recordedSleep, const Duration(minutes: 90));
     expect(week[5].sessionCount, 2);
+    expect(week[5].hasOverlap, isTrue);
+    expect(week.last.hasOverlap, isFalse);
   });
 
   test('Prague autumn day measures 25 hours and spring day 23 hours', () {

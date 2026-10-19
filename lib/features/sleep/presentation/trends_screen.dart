@@ -103,6 +103,7 @@ class _TrendsContent extends StatelessWidget {
     final summary = SleepSummary.rolling24Hours(records, nowUtc);
     final days = SleepWeek.lastSevenDays(records, nowUtc);
     final haveRecords = days.any((day) => day.hasRecords);
+    final hasWeekOverlap = days.any((day) => day.hasOverlap);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -172,7 +173,7 @@ class _TrendsContent extends StatelessWidget {
             ),
           ),
         ),
-        if (summary.hasOverlap) ...[
+        if (hasWeekOverlap) ...[
           const SizedBox(height: 14),
           Text(
             strings.trendsOverlap,
@@ -218,11 +219,11 @@ class _DayRow extends StatelessWidget {
       label: strings.trendsDayAccessible(
         date,
         value,
-        day.isToday
+        '${day.isToday
             ? strings.trendsTodayStatus
             : !day.hasRecords
             ? strings.trendsMissingStatus
-            : strings.trendsNoStatus,
+            : strings.trendsNoStatus}${day.hasOverlap ? strings.trendsDayOverlapStatus : ''}',
       ),
       child: ExcludeSemantics(
         child: Row(
@@ -252,10 +253,23 @@ class _DayRow extends StatelessWidget {
             const SizedBox(width: 12),
             SizedBox(
               width: 78,
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                style: Theme.of(context).textTheme.labelMedium,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (day.hasOverlap)
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 15,
+                      color: scheme.error,
+                    ),
+                  Flexible(
+                    child: Text(
+                      value,
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

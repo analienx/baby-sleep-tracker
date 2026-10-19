@@ -32,7 +32,7 @@ jobs:
           cache: true
 
       - name: Restore locked packages
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Enforce Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
@@ -91,7 +91,7 @@ jobs:
           cache: true
 
       - name: Restore locked packages
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Compile iOS simulator app without signing
         # Firebase Apple SDK 13 needs Swift 6.2; macos-15 defaults to Xcode

@@ -52,6 +52,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Family accounts and invitations are not connected in this build. Your records are not shared with another parent.';
 
   @override
+  String get familyReady =>
+      'Manage the caregivers sharing this baby\'s timeline. Invitations and access changes need a network connection.';
+
+  @override
   String get familyInvite => 'Invite a caregiver';
 
   @override
@@ -66,7 +70,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exportDescription =>
-      'Export the accepted sleep sessions visible on this device. The share sheet lets you save a copy. This does not include a cloud audit history or unreviewed conflicting versions.';
+      'Export your accepted sleep sessions plus their revision history and conflicts when connected to family storage. The file records whether the snapshot is cloud-confirmed. Choose a private destination.';
 
   @override
   String get exportWarning =>
@@ -98,14 +102,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'The share sheet closed. Check that your file was saved.';
 
   @override
+  String get exportIncomplete =>
+      'This is a partial or unconfirmed archive, not a complete cloud backup.';
+
+  @override
+  String get exportClearCache => 'Clear temporary export files';
+
+  @override
+  String exportCacheCleared(int count) {
+    return 'Removed $count temporary export files from this device.';
+  }
+
+  @override
+  String get exportCacheError =>
+      'Could not clear temporary exports. Try again later.';
+
+  @override
   String get deleteHeading => 'Deletion and recovery';
 
   @override
   String get deleteDescription =>
-      'Remove individual rests in History, then Undo if needed. Account or household deletion is not available without authenticated family storage; no deletion request has been sent.';
+      'Remove individual rests in History to keep a reversible audit trail. A household owner can permanently erase every family\'s sleep record and edit history from the cloud in Manage caregivers. Export first.';
 
   @override
   String get deleteHousehold => 'Delete household data';
+
+  @override
+  String get deleteOwnerOnly =>
+      'Continue to Manage caregivers for owner-only permanent deletion. Unavailable while offline.';
 
   @override
   String get trendsTitle => 'Finding a rhythm.';
@@ -165,6 +189,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get trendsMissingStatus => ', no entry recorded';
+
+  @override
+  String get trendsDayOverlapStatus => ', overlapping records require review';
 
   @override
   String get trendsNoStatus => '';

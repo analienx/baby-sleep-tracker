@@ -3,9 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../app/providers.dart';
+import '../../features/sleep/data/sleep_export_files.dart';
+import '../../features/sleep/domain/sleep_archive.dart';
 import '../../features/sleep/domain/sleep_export.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -15,19 +18,25 @@ class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({
     required this.appearance,
     required this.onAppearanceChanged,
+    this.familyAvailable = false,
+    this.familyFromCache = false,
     super.key,
   });
 
   final ThemeMode appearance;
   final Future<void> Function(ThemeMode) onAppearanceChanged;
+  final bool familyAvailable;
+  final bool familyFromCache;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final SleepExportFiles _exportFiles = SleepExportFiles();
   bool _exporting = false;
   ThemeMode? _selectedAppearance;
+  int _appearanceRevision = 0;
 
   void _feedback(String message) {
     if (!mounted) return;
@@ -37,11 +46,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _setAppearance(ThemeMode value) async {
+    final before = _selectedAppearance ?? widget.appearance;
+    final revision = ++_appearanceRevision;
     setState(() => _selectedAppearance = value);
     try {
       await widget.onAppearanceChanged(value);
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || revision != _appearanceRevision) return;
+      setState(() => _selectedAppearance = before);
       _feedback(AppLocalizations.of(context).appearanceError);
     }
   }
@@ -53,37 +65,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       // Fetch the latest accepted projection when the parent taps Export;
       // never reuse possibly stale records from the widget's last frame.
-      final sessions = await ref.read(sleepRepositoryProvider).readSessions();
+      final repository = ref.read(sleepRepositoryProvider);
+      final archive = repository is SleepArchiveSource
+          ? await (repository as SleepArchiveSource).readArchive()
+          : SleepArchive(sessions: await repository.readSessions());
       final now = ref.read(clockProvider).nowUtc;
       final contents = asJson
-          ? SleepExport.json(sessions, exportedAtUtc: now)
-          : SleepExport.csv(sessions);
+          ? SleepExport.archiveJson(archive, exportedAtUtc: now)
+          : SleepExport.archiveCsv(archive);
+      if (!mounted) return;
+      final file = await _exportFiles.stage(
+        bytes: Uint8List.fromList(utf8.encode(contents)),
+        asJson: asJson,
+      );
       if (!mounted) return;
       final result = await SharePlus.instance.share(
         ShareParams(
-          files: [
-            XFile.fromData(
-              Uint8List.fromList(utf8.encode(contents)),
-              mimeType: asJson ? 'application/json' : 'text/csv',
-            ),
-          ],
+          files: [file],
           fileNameOverrides: [
             asJson
-                ? 'little-rest-sessions-v1.json'
-                : 'little-rest-sessions-v1.csv',
+                ? 'little-rest-archive-v2.json'
+                : 'little-rest-archive-v2.csv',
           ],
           sharePositionOrigin: origin,
           title: strings.exportHeading,
         ),
       );
       if (!mounted) return;
-      _feedback(switch (result.status) {
+      final outcome = switch (result.status) {
         ShareResultStatus.success => strings.exportDone,
         ShareResultStatus.dismissed => strings.exportDismissed,
         _ => strings.exportUnknown,
-      });
+      };
+      _feedback(
+        archive.isComplete ? outcome : '${strings.exportIncomplete} $outcome',
+      );
     } catch (_) {
       if (mounted) _feedback(strings.exportError);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _clearExportFiles() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final cleared = await _exportFiles.clearAfterSharing();
+      if (mounted) {
+        _feedback(AppLocalizations.of(context).exportCacheCleared(cleared));
+      }
+    } catch (_) {
+      if (mounted) _feedback(AppLocalizations.of(context).exportCacheError);
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -134,20 +167,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 14),
                 _SettingsSection(
                   title: strings.familyHeading,
-                  description: strings.familyNotReady,
+                  description: widget.familyAvailable
+                      ? strings.familyReady
+                      : strings.familyNotReady,
                   child: Column(
                     children: [
                       ListTile(
-                        enabled: false,
+                        enabled: widget.familyAvailable,
                         leading: const Icon(Icons.person_add_alt_outlined),
                         title: Text(strings.familyInvite),
-                        subtitle: Text(strings.familyUnavailable),
+                        subtitle: widget.familyAvailable
+                            ? null
+                            : Text(strings.familyUnavailable),
+                        onTap: widget.familyAvailable
+                            ? () => context.push('/family')
+                            : null,
                       ),
                       ListTile(
-                        enabled: false,
+                        enabled: widget.familyAvailable,
                         leading: const Icon(Icons.group_outlined),
                         title: Text(strings.familyManage),
-                        subtitle: Text(strings.familyUnavailable),
+                        subtitle: widget.familyAvailable
+                            ? null
+                            : Text(strings.familyUnavailable),
+                        onTap: widget.familyAvailable
+                            ? () => context.push('/family')
+                            : null,
                       ),
                     ],
                   ),
@@ -204,6 +249,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           const SizedBox(height: 10),
                           Text(strings.exportBusy),
                         ],
+                        const SizedBox(height: 6),
+                        TextButton.icon(
+                          onPressed: _exporting ? null : _clearExportFiles,
+                          icon: const Icon(Icons.cleaning_services_outlined),
+                          label: Text(strings.exportClearCache),
+                        ),
                       ],
                     ),
                   ),
@@ -213,10 +264,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: strings.deleteHeading,
                   description: strings.deleteDescription,
                   child: ListTile(
-                    enabled: false,
+                    enabled: widget.familyAvailable && !widget.familyFromCache,
                     leading: const Icon(Icons.delete_outline_rounded),
                     title: Text(strings.deleteHousehold),
-                    subtitle: Text(strings.familyUnavailable),
+                    subtitle: Text(
+                      widget.familyAvailable
+                          ? strings.deleteOwnerOnly
+                          : strings.familyUnavailable,
+                    ),
+                    onTap: widget.familyAvailable && !widget.familyFromCache
+                        ? () => context.push('/family')
+                        : null,
                   ),
                 ),
               ],

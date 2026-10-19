@@ -1,81 +1,91 @@
-# F3 experience, accessibility and privacy: stacked draft review
+# F3 corrective review — integrated F2 + F3 draft
 
-This branch is stacked on `feat/f1-history-corrections` (PR #24), which itself
-depends on F1 PR #23 and F0 PR #22. **G0 #4, G1 #9 and G2 #14 are not approved.**
-Do not merge this branch or close F3 #15–#17 / G3 #18 based only on automated
-tests. Do not use any preview records as real infant data.
+This integration is based on F3 PR #26 and the latest F2 PR #25. **G0 #4,
+G1 #9, G2 #14 and G3 #18 remain open.** Automated passing tests are not
+authorization to deploy a family-data app with real infant records.
 
-## Implemented
+## Corrected in this integration
 
-- **#15 / visual & accessibility:** three-tab navigation retained; gear opens
-  privacy/settings instead of adding a fourth tab. Appearance (system/light/
-  dark) persists in device preferences. Compact/200% text layouts pin the one
-  primary action above the tab bar; a warning never obscures it. Timers are
-  derived from UTC records and pause their visual tick while app is backgrounded.
-  Existing card colors use low-glare dark surfaces; no custom motion bypasses
-  platform reduced-animation settings.
-- **#16 / observations:** seven real *local civil days* with UTC boundaries;
-  `SleepSummary.between` clips and unions overlapping sessions. Day lengths
-  adjust for 23-/25-hour DST changes. An empty day is explicitly **No entries**,
-  not `0h` of sleep; today is incomplete. The chart has screen-reader text
-  equivalents and no target, score, prediction or medical claim. Initial
-  English ARB/Flutter localization pipeline covers F3 and tab labels.
-- **#17 / portability:** export of the **accepted visible projection** as
-  versioned JSON or UTF-8 RFC-4180 CSV through native share UI, with UTC
-  instants and null ongoing end. JSON round-trip tests, zero-data and CSV
-  escaping/formula safeguards. Export reads repository state at tap time and
-  distinguishes share success/dismissal/unknown results. No analytics or
-  crash-reporting SDK records child identifiers or raw timelines.
+- **P1 — daily usability:** An unresolved historical edit is still warned
+  about, but cannot hijack **Start sleep / Wake up** when there are zero or one
+  active sessions. Only multiple active records block the primary action.
+  A widget regression covers a disputed older nap alongside an active nap.
+- **P1 — family integration:** F3 family placeholders now navigate to the F2
+  authenticated household onboarding, durable account linking, one-time
+  invitations, caregiver management and revocation when family mode is
+  enabled. Ordinary preview mode honestly disables these actions.
+- **P1 — data portability:** New archive schema v2 exports accepted sessions
+  **and immutable revision operations**, actor IDs, tombstones, ancestry,
+  competing heads and quarantined/invalid document IDs. JSON and CSV declare
+  cloud confirmation and completeness; cached or pending snapshots are **not
+  certified backups**. Older projection-only export methods are retained.
+- **P1 — export privacy:** Generated files live in a narrowly named app-only
+  temporary directory. They expire after one day; an explicit Settings button
+  removes them earlier. External share recipients own their separate copies.
+- **P1 — household deletion:** Owner-only typed `DELETE` confirmation; server
+  transaction immediately fences household access in Firestore Rules; removes
+  invitations and member profiles; recursively erases baby documents **and
+  their immutable operation subcollections**; atomically removes the owner's
+  profile and family root last. Interrupted deletion is locked and retryable.
+  Sign-in credentials remain separate.
+- **P2 — charts:** Overlapping days are marked and explained on the seven-day
+  chart; durations continue to use interval unions.
+- **P2 — preferences:** Appearance writes are serialized; stale startup reads,
+  out-of-order taps and failed writes cannot silently misrepresent the choice.
+- **Visual accessibility:** Existing chart contrast, compact tap target,
+  large-text and six theme golden checks remain intact.
 
-## Honest limits and gates
+## Verified with synthetic data
 
-1. **P1 dependency / G2:** F2 authenticated household, invitations, access
-   revocation, profile, account migration, data-deletion endpoint and secure
-   production Firestore rules do not exist in this branch. These controls are
-   disabled with explanations; there is **no pretend invite/delete action**.
-   Full deletion/revocation behavior must be implemented and verified in F2.
-2. **P1 for G3:** Real Android and iPhone share-sheet, screen-reader, tap
-   target, dynamic type, contrast, reduced-motion and visual walkthroughs
-   remain unverified, as does a fresh caregiver's five-minute journey. Device
-   smoke and independent sign-off are required before closing any F3 issue.
-3. **P2 localization:** Existing Today/History/F1 editor strings still contain
-   literals. Convert them to ARB messages before claiming #16 fully done.
-4. **P2 privacy:** `share_plus` stages temporary export bytes in app cache;
-   external destinations may retain them. Verify cache lifecycle/removal and
-   privacy messaging on real devices before using personal sleep data.
-5. **P2 data fidelity:** The repository exposes accepted sessions, not its
-   complete immutable operation journal; unresolved edit heads, revisions and
-   server history are outside current exports. Improve repository export
-   contract when F2 is available, with multi-device concurrency testing.
-6. **P2 visual:** Independent visual critique and measured contrast report
-   outstanding. Golden tests do not replace device screenshot/gestures.
+- [x] Flutter format and static analysis with zero reported issues.
+- [x] **78 Flutter domain/widget/golden tests** passed, including the
+  historical-dispute and rapid-preference regressions.
+- [x] Firebase Auth + Firestore + Functions emulator: two signed-in caregivers,
+  one-time invitations, role protection, operation sync, revocation, deletion,
+  nested operation and invitation erasure.
+- [x] Firestore Rules emulator: strangers, forged actors, invalid ancestry,
+  role escalation, and deletion-fenced reads/writes are denied.
+- [x] Staged-export cleanup and complete/incomplete archive tests.
+- [ ] CI Android debug and unsigned iOS simulator build on **integrated PR
+  head** (Linux runner lacks Android SDK and macOS/Xcode).
+- [ ] Two physical phones: install/reboot/offline edit/reconnect/conflict,
+  invitation/revocation, and permanent deletion walkthrough.
+- [ ] Android + iPhone share UI, TalkBack + VoiceOver, dynamic type,
+  reduced motion, contrast and tired-parent usability evaluation.
+- [ ] Production Firebase setup, backup/retention policy, app signing, store
+  compliance, privacy notice, recovery drills.
+- [ ] Independent F2/G2 security and F3/G3 product approval.
 
-## Synthetic verification checklist
+## Remaining gaps — not approved
 
-- [x] Session JSON round-trips exact UTC timestamps, IDs and null ends.
-- [x] CSV comma/quote escaping, empty header, formula-like ID protection.
-- [x] Seven-day absent/partial days and cross-midnight overlapping totals.
-- [x] Europe/Prague spring 23-hour/autumn 25-hour days.
-- [x] Compact 320×568, 200% text, one-tap action and semantics assertion.
-- [x] Day/night chart marks pass automated 3:1 non-text color contrast check
-  against their theme tracks (light daytime sage ≈4:1; dark sage ≈9:1).
-- [x] Light/dark golden baselines: Today, Trends, Settings.
-- [x] Preferences in-memory fake in widget suite; disabled family actions.
-- [ ] Android debug APK / unsigned iOS simulator build on this PR's head.
-- [ ] Real-device iPhone/Android TalkBack/VoiceOver/appearance/share checks.
-- [ ] Firebase two-caregiver household, export, deletion, revocation E2E.
-- [ ] Independent P1/P2/P3 review decision; G3 approval.
+1. **Production security:** The family backend is exercised under emulators,
+   not deployed to a production project. Offline copies downloaded before a
+   caregiver is revoked cannot be remotely erased.
+2. **Identity deletion:** Household cloud-data deletion does not delete
+   separate Firebase Authentication accounts. In-app credential deletion and
+   recent-login reauthentication require implementation before release.
+3. **Localization:** The F3 ARB-based shell is English-only, and inherited F1
+   Today/History/editor and F2 family screens retain literal strings.
+4. **Travel-zone semantics:** Day charts follow the *viewing device's* local
+   calendar. Changing its time zone may regroup older sessions even though
+   UTC elapsed durations remain correct. A household IANA zone and a viewing
+   zone selector remain a separate product decision.
+5. **Backup semantics:** An archive reflects a point-in-time Firestore SDK
+   listener snapshot, not a transactional global snapshot of every offline
+   device. `complete: true` means that this device saw a server-confirmed,
+   no-pending-writes journal with no known invalid/quarantined operations.
+   Another device may still be holding unsent writes.
 
-## Review/operation notes
+## Reproduction
 
-- Do not rely on a Flutter background timer: both Today and Trends use saved
-  UTC times and recompute on resume. The minute ticker exists only to refresh
-  an open Trends screen when an active record crosses a minute boundary.
-- A single session spanning midnight is never split in storage. Bar metrics
-  represent *observed* seconds clipped to each civil day; no entries do not
-  imply wakefulness.
-- Export is a point-in-time read of the accepted projection. It is not a
-  cloud-confirmed, transactional cross-device snapshot. Pending sync status
-  in the preview/emulator is not proof of server persistence.
-- This is a public source repository. Never check in real names, email
-  addresses, sleep timelines, Firebase config, tokens or private exports.
+```sh
+flutter analyze
+flutter test
+npm --prefix functions ci
+functions/node_modules/.bin/firebase emulators:exec \
+  --project demo-little-rest --only auth,firestore,functions \
+  'npm --prefix functions test'
+```
+
+Use synthetic identities and timestamps only. Never add real baby records,
+invitation tokens or Firebase secrets to this public repository.

@@ -8,6 +8,7 @@ final class SleepDayTotal {
     required this.localDate,
     required this.recordedSleep,
     required this.sessionCount,
+    required this.hasOverlap,
     required this.isToday,
     required this.dayLength,
   });
@@ -15,6 +16,7 @@ final class SleepDayTotal {
   final DateTime localDate;
   final Duration recordedSleep;
   final int sessionCount;
+  final bool hasOverlap;
   final bool isToday;
   final Duration dayLength;
   bool get hasRecords => sessionCount > 0;
@@ -51,6 +53,7 @@ final class SleepWeek {
           localDate: date,
           recordedSleep: summary?.sleep ?? Duration.zero,
           sessionCount: summary?.sessionCount ?? 0,
+          hasOverlap: summary?.hasOverlap ?? false,
           isToday: isToday,
           dayLength: next.difference(start),
         ),

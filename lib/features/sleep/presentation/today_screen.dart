@@ -109,11 +109,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen>
             child: Padding(
               padding: const EdgeInsets.fromLTRB(22, 10, 22, 13),
               child: sessions.when(
-                data: (value) => _SleepActionRow(
-                  sessions: value,
-                  conflictCount: conflicts.asData?.value.length ?? 0,
-                  compact: true,
-                ),
+                data: (value) =>
+                    _SleepActionRow(sessions: value, compact: true),
                 loading: () => const SizedBox(height: 58),
                 error: (_, _) => const SizedBox(height: 58),
               ),
@@ -207,7 +204,7 @@ class _Dashboard extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      conflictCount > 0 || active.length > 1
+                      active.length > 1
                           ? 'NEEDS REVIEW'
                           : sleeping
                           ? 'SLEEPING NOW'
@@ -256,7 +253,7 @@ class _Dashboard extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                conflictCount > 0 || active.length > 1
+                active.length > 1
                     ? 'Check competing records in History'
                     : sleeping
                     ? 'Started ${formatLocalTime(context, active.first.startedAtUtc)}'
@@ -267,10 +264,7 @@ class _Dashboard extends ConsumerWidget {
               ),
               if (!compact) ...[
                 const SizedBox(height: 18),
-                _SleepActionRow(
-                  sessions: sessions,
-                  conflictCount: conflictCount,
-                ),
+                _SleepActionRow(sessions: sessions),
               ],
             ],
           ),
@@ -333,14 +327,9 @@ class _Dashboard extends ConsumerWidget {
 
 /// Shared action for normal status-card and accessible compact sticky layout.
 class _SleepActionRow extends ConsumerWidget {
-  const _SleepActionRow({
-    required this.sessions,
-    required this.conflictCount,
-    this.compact = false,
-  });
+  const _SleepActionRow({required this.sessions, this.compact = false});
 
   final List<SleepSession> sessions;
-  final int conflictCount;
   final bool compact;
 
   Future<void> _perform(
@@ -377,7 +366,10 @@ class _SleepActionRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeCount = sessions.where((session) => session.isActive).length;
     final sleeping = activeCount > 0;
-    final needsReview = conflictCount > 0 || activeCount > 1;
+    // A conflict in an *unrelated, completed* nap must never prevent parents
+    // from ending an otherwise unambiguous current sleep. The separate
+    // dashboard warning still directs caregivers to History for reconciliation.
+    final needsReview = activeCount > 1;
     return Row(
       children: [
         Expanded(

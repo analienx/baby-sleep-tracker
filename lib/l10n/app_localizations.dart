@@ -172,6 +172,12 @@ abstract class AppLocalizations {
   /// **'Family accounts and invitations are not connected in this build. Your records are not shared with another parent.'**
   String get familyNotReady;
 
+  /// No description provided for @familyReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage the caregivers sharing this baby\'s timeline. Invitations and access changes need a network connection.'**
+  String get familyReady;
+
   /// No description provided for @familyInvite.
   ///
   /// In en, this message translates to:
@@ -199,7 +205,7 @@ abstract class AppLocalizations {
   /// No description provided for @exportDescription.
   ///
   /// In en, this message translates to:
-  /// **'Export the accepted sleep sessions visible on this device. The share sheet lets you save a copy. This does not include a cloud audit history or unreviewed conflicting versions.'**
+  /// **'Export your accepted sleep sessions plus their revision history and conflicts when connected to family storage. The file records whether the snapshot is cloud-confirmed. Choose a private destination.'**
   String get exportDescription;
 
   /// No description provided for @exportWarning.
@@ -250,6 +256,30 @@ abstract class AppLocalizations {
   /// **'The share sheet closed. Check that your file was saved.'**
   String get exportUnknown;
 
+  /// No description provided for @exportIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a partial or unconfirmed archive, not a complete cloud backup.'**
+  String get exportIncomplete;
+
+  /// No description provided for @exportClearCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear temporary export files'**
+  String get exportClearCache;
+
+  /// No description provided for @exportCacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} temporary export files from this device.'**
+  String exportCacheCleared(int count);
+
+  /// No description provided for @exportCacheError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not clear temporary exports. Try again later.'**
+  String get exportCacheError;
+
   /// No description provided for @deleteHeading.
   ///
   /// In en, this message translates to:
@@ -259,7 +289,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteDescription.
   ///
   /// In en, this message translates to:
-  /// **'Remove individual rests in History, then Undo if needed. Account or household deletion is not available without authenticated family storage; no deletion request has been sent.'**
+  /// **'Remove individual rests in History to keep a reversible audit trail. A household owner can permanently erase every family\'s sleep record and edit history from the cloud in Manage caregivers. Export first.'**
   String get deleteDescription;
 
   /// No description provided for @deleteHousehold.
@@ -267,6 +297,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete household data'**
   String get deleteHousehold;
+
+  /// No description provided for @deleteOwnerOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue to Manage caregivers for owner-only permanent deletion. Unavailable while offline.'**
+  String get deleteOwnerOnly;
 
   /// No description provided for @trendsTitle.
   ///
@@ -369,6 +405,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **', no entry recorded'**
   String get trendsMissingStatus;
+
+  /// No description provided for @trendsDayOverlapStatus.
+  ///
+  /// In en, this message translates to:
+  /// **', overlapping records require review'**
+  String get trendsDayOverlapStatus;
 
   /// No description provided for @trendsNoStatus.
   ///

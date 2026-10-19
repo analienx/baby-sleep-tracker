@@ -2,11 +2,11 @@
 
 A calm, family-first sleep tracker for Android and iPhone.
 
-**Status:** F0/F1 remain draft review work; F2 family security is not yet
-implemented. F3 experience/export work is stacked on the F1 History draft.
-The default app uses **non-persistent preview storage** and no production
-Firebase project is configured. Do not use these builds to log real sleep or
-rely on them for records.
+**Status:** F0/F1/F2/F3 are **draft, not release-approved**. The F2 family
+backend and F3 experience fixes are integrated for joint review, but G0–G3
+and physical-device sign-off remain open. The default app uses
+**non-persistent preview storage** and no production Firebase project is
+configured. Do not use these builds for real infant sleep or as a backup.
 
 ## Run the preview
 
@@ -22,19 +22,21 @@ flutter run
 The app opens on Today. Tap **Start sleep** / **Wake up** to interact with a
 memory-only demonstration, or navigate between **Today**, **History** and
 **Trends**. Settings (gear icon) provides a device-saved appearance preference
-and JSON/CSV sharing of the accepted session snapshot. The seven-day view
+and JSON/CSV sharing. The seven-day view
 uses local civil days, marks absent records as unknown, and labels today as
 incomplete. Every screen marks its preview status: all entries disappear when
 the app restarts. No child profile, credentials, synthetic sleep fixture or
 Firebase network call is configured in the running app.
 
-**F3 limitations:** Export does not include the immutable operation audit
-journal or unresolved competing versions. In preview mode, exported records
-are not durable. The share sheet may stage temporary files in the app cache;
-use a private destination and remove unnecessary copies. Family invitations,
-caregiver revocation, account recovery, child/household deletion requests and
-cloud-verifiable export are disabled until F2 backend security is implemented
-and reviewed. No deletion request is sent from this preview.
+**F3 export semantics:** Family-mode archives include the immutable operation
+journal, accepted sessions and competing edits. JSON/CSV archives say whether
+they are cloud-confirmed, complete, and free of malformed operation data.
+Preview-mode exports are explicitly **partial** and not durable. A share-sheet
+file may remain in temporary app storage for up to a day; Settings can clear
+those staged copies immediately after sharing. External share recipients can
+retain separate copies. Family invitations, revocation, and owner-only
+household deletion run only against the F2 backend, never ordinary preview.
+Household deletion does not delete separate Firebase sign-in credentials.
 
 ### Opt-in offline Firebase development mode (synthetic data only)
 
@@ -82,7 +84,7 @@ lib/app/                         Navigation, themes, clock and DI
 lib/features/sleep/domain/       UTC sessions, calculations, actions, contracts
 lib/features/sleep/data/         Preview and emulator-only Firestore adapters
 lib/features/sleep/presentation/ Today, History, Trends
-lib/features/settings/           Appearance, export and disabled family controls
+lib/features/settings/           Appearance, export and family navigation
 lib/l10n/                        English message bundle and localization API
 test/domain/                     UTC/DST/operation replay and fake-clock tests
 test/widget_test.dart            Navigation, semantics and visual tests
@@ -140,3 +142,24 @@ accepted until test evidence and its review checklist are complete. See
 ## Public repository notice
 
 Never commit real child data, authentication secrets, Firebase service account credentials, signing keys, exports, or device-specific personal information. This repository's open-source license has not yet been selected.
+
+## Family-sharing preview (F2, stacked draft)
+
+See [F2 implementation and security runbook](docs/F2_IMPLEMENTATION.md). The
+ordinary app remains **volatile preview**; no production Firebase connection is
+made by default. Run the F2 emulator backend using:
+
+```bash
+cd functions && npm ci && cd ..
+npx --prefix functions firebase emulators:start --project demo-little-rest --only auth,firestore,functions
+flutter run --dart-define=USE_FAMILY_EMULATOR=true
+```
+
+The older F1 synthetic emulator uses `firebase.dev.json` and
+`--dart-define=USE_FIREBASE_EMULATOR=true`. Never deploy the development rules.
+The production opt-in is deliberately blocked without environment-specific app
+identifiers and G2 security approval. Cloud function deployment, real device
+verification, and account-recovery QA remain open. The deletion flow requires
+typing `DELETE`, fences family data immediately, recursively removes nested
+sleep history and invitations, and permits interrupted cleanup to be resumed.
+It has emulator security coverage, not production verification.
