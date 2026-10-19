@@ -1,0 +1,48 @@
+# F0 foundation — evidence and open review gate
+
+**Scope:** Issues [#2](https://github.com/analienx/baby-sleep-tracker/issues/2),
+[#3](https://github.com/analienx/baby-sleep-tracker/issues/3).
+**Blocking gate:** [G0 #4](https://github.com/analienx/baby-sleep-tracker/issues/4).
+**Decision:** Pending independent review and GitHub-hosted CI evidence.
+
+## Implemented for the first review
+
+- Flutter 3.47.7 Android/iOS bootstrap (default package ID currently
+  `com.analienx.baby_sleep_tracker`; final production app identity is not yet
+  approved).
+- Three-screen Today / History / Trends shell with go_router; Riverpod
+  dependency seams for clock, actions and repository.
+- Light/dark design tokens and low-glare hero, readable empty states, large
+  primary action, visual preview warning and semantics.
+- Intentionally **volatile** preview repository, not a disguised offline store.
+  Real F1 storage/Undo/backdate/edit and F2 Firebase/Auth are not present.
+- UTC interval domain model and union-based 24-hour aggregation with unit tests
+  for midnight, Prague DST shift, time-zone change and overlapping intervals.
+- Source-pinned GitHub Actions for formatting, analysis, unit/widget/golden
+  tests, Android debug APK, and secret scanning; no store publishing, cloud
+  deployment or credentials.
+
+## Gate evidence to record before G0 may pass
+
+| Verification | Status |
+| --- | --- |
+| Clean Flutter 3.47.7 dependency lockfile resolution | Pending final CI evidence |
+| `dart format`, `flutter analyze`, `flutter test` | Pending final execution evidence |
+| Android debug CI artifact and exact run SHA | Pending CI run |
+| Light/dark goldens and TalkBack/VoiceOver semantics inspection | Pending independent visual/device review |
+| Flutter iOS project generated; simulator/real-device build | Not verified (macOS/Xcode required) |
+| Secret scanning and no real child PII | Pending CI secret scan and reviewer inspection |
+| Independent P1/P2/P3 review recorded in gate #4 | Pending |
+
+## Boundary / known gaps
+
+- **F1 (not a completed F0 promise):** Durable Firestore offline cache,
+  one-tap Undo, backdate, manual history edits and session reconciliation.
+- **F2 (not configured):** Firebase project EU region, authentication, household
+  membership, trusted invitations and security rules.
+- **F3/F4:** Final logo/app icon, multilingual polish, accessibility testing on
+  physical devices, signing and distribution.
+
+Do not close G0 because code exists, or accept F0 based only on local tests.
+The reviewer should record findings with severity, reproducible evidence,
+mitigations and an explicit gate decision in issue #4.
