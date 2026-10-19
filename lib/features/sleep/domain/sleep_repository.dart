@@ -17,6 +17,10 @@ abstract interface class SleepRepository {
   Future<List<SleepSession>> readSessions();
   Future<void> put(SleepSession session);
   Future<void> remove(String id);
+
+  /// Append a user-chosen snapshot with *all* competing heads as parents.
+  /// Reject the command if the heads have changed since the review opened.
+  Future<void> resolveConflict(SleepConflict conflict, SleepSession? selected);
   Stream<SleepStorageStatus> watchStorageStatus();
   Stream<List<SleepConflict>> watchConflicts();
 }

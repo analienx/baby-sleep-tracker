@@ -196,7 +196,40 @@ final class FirestoreSleepRepository implements SleepRepository {
     await _append(matching.single, deleted: true);
   }
 
-  Future<void> _append(SleepSession session, {required bool deleted}) async {
+  @override
+  Future<void> resolveConflict(
+    SleepConflict conflict,
+    SleepSession? selected,
+  ) async {
+    await readSessions();
+    final current = [
+      for (final item in _projection.conflicts)
+        if (item.sessionId == conflict.sessionId) item,
+    ];
+    if (current.length != 1 ||
+        current.single.heads.length != conflict.heads.length ||
+        !current.single.heads
+            .map((op) => op.id)
+            .toSet()
+            .containsAll(conflict.heads.map((op) => op.id))) {
+      throw StateError('The competing revisions changed. Review them again.');
+    }
+    if (selected != null && selected.id != conflict.sessionId) {
+      throw ArgumentError('Resolution must keep the same session ID.');
+    }
+    final snapshot = selected ?? conflict.heads.first.session;
+    await _append(
+      snapshot,
+      deleted: selected == null,
+      resolutionParents: current.single.heads.map((op) => op.id).toList(),
+    );
+  }
+
+  Future<void> _append(
+    SleepSession session, {
+    required bool deleted,
+    List<String>? resolutionParents,
+  }) async {
     await readSessions();
     final existing = _lastOperations.where((op) => op.session.id == session.id);
     final referenced = existing.expand((op) => op.parentIds).toSet();
@@ -204,8 +237,14 @@ final class FirestoreSleepRepository implements SleepRepository {
       for (final op in existing)
         if (!referenced.contains(op.id)) op.id,
     ];
-    if (heads.length > 1) {
+    if (heads.length > 1 && resolutionParents == null) {
       throw StateError('Competing offline edits need explicit resolution.');
+    }
+    if (resolutionParents != null &&
+        (heads.length < 2 ||
+            heads.length != resolutionParents.length ||
+            !heads.toSet().containsAll(resolutionParents))) {
+      throw StateError('Conflict heads changed; review again.');
     }
     if (deleted && heads.isEmpty) {
       throw StateError('Cannot delete an unknown sleep session.');
@@ -215,7 +254,7 @@ final class FirestoreSleepRepository implements SleepRepository {
       id: id,
       actorId: _syntheticUserId,
       session: session,
-      parentIds: heads,
+      parentIds: resolutionParents ?? heads,
       recordedAtUtc: DateTime.now().toUtc(),
       deleted: deleted,
     );

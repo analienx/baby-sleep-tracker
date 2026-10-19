@@ -78,6 +78,43 @@ snapshot may represent previously synchronized data; avoid labeling it
 "offline" with certainty. The active timer is `nowUtc - saved UTC start`,
 without an always-on background service.
 
+## 4. History manual corrections — #7 (new draft slice)
+
+History groups intact sessions by the **device-local start date**, sorts the
+timeline newest first, and prints the full start **and** end local dates on
+each tile. Crossing midnight remains one record; metrics independently split
+the same real UTC interval at civil-day boundaries. Overlaps are highlighted
+but never deduplicated or deleted from the journal. An editor warns before
+saving an overlap and allows the caregiver to inspect the originals.
+
+Material date/time controls yield wall-clock fields, which do not uniquely
+identify an instant around a daylight-saving transition. Our
+`LocalWallTime.candidates` algorithm samples UTC-to-local offsets around the
+chosen civil time, subtracts each distinct offset, and round-trips to prove
+the candidate has **exactly** the requested year/month/day/hour/minute. It
+returns zero, one, or multiple UTC instants. Nonexistent spring times block
+saving; repeated autumn times require an explicit first/second selection with
+the UTC offset displayed. UTC values are kept intact when a caregiver edits
+only the other endpoint, preserving any previously captured seconds. Test
+fixtures cover Prague 2026 folds/gaps, New York and Nepal's 45-minute offset.
+
+`SleepActions` guards edits and deletes against a stale source snapshot, does
+not convert invalid/future UTC endpoints, and exposes one-step Undo. A delete
+is a **tombstone** in emulator mode; undo appends a new snapshot revision. In
+ordinary preview mode, both mutations are memory-only. For a competing
+offline edit, History offers an explicit version chooser that appends one
+operation referencing **all** observed heads after verifying they are still
+current. No conflicting branch is discarded; a new unseen concurrent write
+will cause another conflict rather than silently win.
+
+Outstanding for independent review: physical screen-reader/date/time picker
+checks at large text sizes, Android/iPhone emulator persistence under
+force-stop/reboot, DST input when the *device* is set to Prague, and a
+stronger cross-device mutation receipt for a delete Undo when several writers
+delete/recreate the **same** session concurrently. The one-step local Undo
+guards the visible record and competing heads, but absence alone cannot prove
+the remote tombstone is unchanged. No production persistence has been enabled.
+
 ## Emulator smoke run (synthetic records only)
 
 1. Install Firebase CLI and run `firebase emulators:start --project demo-little-rest`
@@ -99,8 +136,8 @@ without an always-on background service.
 - G0 #4 independent real-device and accessibility review; no gate bypass.
 - G1 #9 physical-device restart/airplane-mode/fsync and emulator permission
   tests. Local listener visibility is not proof of force-stop/reboot survival.
-- History's manual exact-timestamp entry, editing, deletion and explicit
-  conflict resolution UI (#7) are not built in this slice.
+- History #7 now has draft UI and synthetic regression tests; independent
+  accessibility, device-zone and persistence review is still required.
 - The normal release build is **not a functioning persisted tracker**. Never
   enter a real baby's sleep data into preview or demo mode.
 - F2 household membership, secure invitations and cross-account reconciliation
@@ -114,3 +151,6 @@ without an always-on background service.
 - [Connect Firestore emulators](https://firebase.google.com/docs/emulator-suite/connect_firestore)
 - [Connect Authentication emulator](https://firebase.google.com/docs/emulator-suite/connect_auth)
 - [Dart timezone / IANA database](https://pub.dev/packages/timezone)
+- [Dart civil-time ambiguity and nonexistent times](https://api.dart.dev/dart-core/DateTimeCopyWith/copyWith.html)
+- [Flutter date picker](https://api.flutter.dev/flutter/material/showDatePicker.html)
+- [Flutter time picker](https://api.flutter.dev/flutter/material/showTimePicker.html)
