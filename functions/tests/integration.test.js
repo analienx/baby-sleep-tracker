@@ -8,6 +8,7 @@ test('create, invite, redeem, revoke via real Auth + Functions emulators', {
   const {initializeApp,deleteApp}=require('firebase/app');
   const {getAuth,connectAuthEmulator,createUserWithEmailAndPassword}=require('firebase/auth');
   const {getFunctions,connectFunctionsEmulator,httpsCallable}=require('firebase/functions');
+  const {getFirestore,connectFirestoreEmulator,doc,setDoc,getDoc}=require('firebase/firestore');
   const suffix=Math.random().toString(36).slice(2);
   const ownerApp=initializeApp({apiKey:'demo-key',projectId:'demo-little-rest',
     appId:'demo:owner:'+suffix},'owner-'+suffix);
@@ -36,8 +37,30 @@ test('create, invite, redeem, revoke via real Auth + Functions emulators', {
     await assert.rejects(httpsCallable(f2,'redeemInvite')({code:issued.code}));
     await assert.rejects(httpsCallable(f2,'issueInvite')({}),
       'caregivers cannot issue invitations');
+
+    // Exercise two genuinely distinct Firebase identities against the
+    // household journal, not just an in-memory mock or same-UID repository.
+    const db1=getFirestore(ownerApp);
+    const db2=getFirestore(joinerApp);
+    connectFirestoreEmulator(db1,'127.0.0.1',8080);
+    connectFirestoreEmulator(db2,'127.0.0.1',8080);
+    const operations='families/'+created.familyId+'/babies/'+created.babyId+'/operations/';
+    const before=new Date('2026-10-19T07:00:00Z');
+    const after=new Date('2026-10-19T07:30:00Z');
+    const first={schemaVersion:1,actorId:ownerAuth.currentUser.uid,
+      sessionId:'shared',parentIds:[],deleted:false,
+      recordedAtUtc:after,startedAtUtc:before,endedAtUtc:null};
+    await setDoc(doc(db1,operations+'start'),first);
+    assert.equal((await getDoc(doc(db2,operations+'start'))).exists(),true);
+    const second={...first,actorId:joinerAuth.currentUser.uid,
+      parentIds:['start'],endedAtUtc:after};
+    await setDoc(doc(db2,operations+'stop'),second);
+    assert.equal((await getDoc(doc(db1,operations+'stop'))).exists(),true);
+    await assert.rejects(setDoc(doc(db2,operations+'forged'),
+      {...first,actorId:ownerAuth.currentUser.uid}));
     await httpsCallable(f1,'revokeMember')({targetUid:joinerAuth.currentUser.uid});
     await assert.rejects(httpsCallable(f2,'issueInvite')({}));
+    await assert.rejects(setDoc(doc(db2,operations+'post-revoke'),second));
     await assert.rejects(httpsCallable(f1,'revokeMember')({targetUid:ownerAuth.currentUser.uid}));
   } finally {
     await Promise.all([deleteApp(ownerApp),deleteApp(joinerApp)]);
