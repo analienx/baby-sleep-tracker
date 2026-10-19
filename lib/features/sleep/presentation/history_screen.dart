@@ -113,8 +113,8 @@ class _SessionTile extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         subtitle: Text(
-          '${formatLocalTime(context, session.startedAtUtc)} — '
-          '${ended == null ? 'ongoing' : formatLocalTime(context, ended)}',
+          '${formatLocalDateTime(context, session.startedAtUtc)} — '
+          '${ended == null ? 'ongoing' : formatLocalDateTime(context, ended)}',
         ),
         trailing: ended == null
             ? const Icon(Icons.circle, color: Colors.green, size: 13)
