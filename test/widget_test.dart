@@ -147,6 +147,11 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Start sleep'), findsOneWidget);
     final backdate = find.byTooltip('Backdate sleep start');
     expect(backdate, findsOneWidget);
+    final earlierLabel = find.text('Earlier');
+    expect(
+      tester.widget<Text>(earlierLabel).style?.color,
+      Theme.of(tester.element(earlierLabel)).colorScheme.onSurface,
+    );
     final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
     expect(tester.getRect(backdate).bottom, lessThan(navigationTop));
     await tester.tap(backdate);
