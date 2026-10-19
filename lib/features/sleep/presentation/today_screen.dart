@@ -5,72 +5,72 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/clock.dart';
 import '../../../app/providers.dart';
 import '../../../app/theme.dart';
 import '../domain/sleep_session.dart';
 import '../domain/sleep_summary.dart';
 import 'presentation_helpers.dart';
 
-class TodayScreen extends ConsumerStatefulWidget {
+class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
   @override
-  ConsumerState<TodayScreen> createState() => _TodayScreenState();
-}
-
-class _TodayScreenState extends ConsumerState<TodayScreen> {
-  Timer? _repaintTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    // Visual refresh only. The authoritative elapsed time is always calculated
-    // from the persisted instant; there is no background timer/service.
-    _repaintTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _repaintTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final now = ref.watch(clockProvider).nowUtc;
+  Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(sleepSessionsProvider);
     final conflicts = ref.watch(sleepConflictsProvider);
-    return PageContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ScreenIntro(
-            title: "Today's sleep.",
-            subtitle: 'One little moment at a time.',
+    final conflictCount = conflicts.asData?.value.length ?? 0;
+    final compact =
+        MediaQuery.sizeOf(context).height < 780 ||
+        MediaQuery.textScalerOf(context).scale(16) > 20;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ScreenIntro(
+          title: "Today's sleep.",
+          subtitle: 'One little moment at a time.',
+        ),
+        const SizedBox(height: 20),
+        const PreviewWarning(),
+        const SizedBox(height: 18),
+        sessions.when(
+          data: (value) => _Dashboard(
+            sessions: value,
+            showEmbeddedAction: !compact,
+            conflictCount: conflictCount,
           ),
-          const SizedBox(height: 20),
-          const PreviewWarning(),
-          const SizedBox(height: 18),
-          sessions.when(
-            data: (value) => _Dashboard(
-              sessions: value,
-              nowUtc: now,
-              conflictCount: conflicts.asData?.value.length ?? 0,
-            ),
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-            error: (_, _) => const Text(
-              'Preview could not load. Restart the app to try again.',
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
             ),
           ),
-        ],
-      ),
+          error: (_, _) => const Text(
+            'Preview could not load. Restart the app to try again.',
+          ),
+        ),
+      ],
+    );
+    if (!compact) return PageContainer(child: content);
+
+    // The sole primary action remains visible above bottom navigation even on
+    // short phones and with enlarged system text. The rest is scrollable.
+    return Column(
+      children: [
+        Expanded(child: PageContainer(child: content)),
+        _StickyActionBar(
+          child: sessions.when(
+            data: (value) => _SleepActionControls(
+              sleeping: value.any((session) => session.isActive),
+              needsReview:
+                  conflictCount > 0 ||
+                  value.where((session) => session.isActive).length > 1,
+            ),
+            loading: () => const _SleepActionControls(enabled: false),
+            error: (_, _) => const _SleepActionControls(enabled: false),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -78,46 +78,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 class _Dashboard extends ConsumerWidget {
   const _Dashboard({
     required this.sessions,
-    required this.nowUtc,
     required this.conflictCount,
+    required this.showEmbeddedAction,
   });
 
   final List<SleepSession> sessions;
-  final DateTime nowUtc;
   final int conflictCount;
-
-  Future<void> _perform(
-    BuildContext context,
-    WidgetRef ref,
-    Future<bool> Function() action,
-  ) async {
-    bool changed;
-    try {
-      changed = await action();
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not update this record. Try again.'),
-        ),
-      );
-      return;
-    }
-    if (!context.mounted) return;
-    if (changed) unawaited(HapticFeedback.lightImpact());
-    if (!context.mounted) return;
-    // The state change is already visible. A success Snackbar could cover the
-    // primary button on small phones and make a second one-tap action miss.
-    if (!changed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No change made. Check for an active-session conflict.',
-          ),
-        ),
-      );
-    }
-  }
+  final bool showEmbeddedAction;
 
   Future<void> _undo(BuildContext context, WidgetRef ref) async {
     try {
@@ -141,6 +108,7 @@ class _Dashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final clock = ref.watch(clockProvider);
     final active = [
       for (final session in sessions)
         if (session.isActive) session,
@@ -150,14 +118,13 @@ class _Dashboard extends ConsumerWidget {
       for (final session in sessions)
         if (session.endedAtUtc != null) session.endedAtUtc!,
     ]..sort((a, b) => b.compareTo(a));
-    final elapsed = active.length > 1
+    final since = active.length > 1
         ? null
         : sleeping
-        ? nowUtc.difference(active.first.startedAtUtc)
+        ? active.first.startedAtUtc
         : latestEnd.isNotEmpty
-        ? nowUtc.difference(latestEnd.first)
+        ? latestEnd.first
         : null;
-    final summary = SleepSummary.rolling24Hours(sessions, nowUtc);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,22 +153,23 @@ class _Dashboard extends ConsumerWidget {
                     size: 22,
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    conflictCount > 0 || active.length > 1
-                        ? 'NEEDS REVIEW'
-                        : sleeping
-                        ? 'SLEEPING NOW'
-                        : elapsed == null
-                        ? 'READY WHEN YOU ARE'
-                        : 'AWAKE FOR',
-                    style: const TextStyle(
-                      color: Color(0xFFE1DDF6),
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                  Expanded(
+                    child: Text(
+                      conflictCount > 0 || active.length > 1
+                          ? 'NEEDS REVIEW'
+                          : sleeping
+                          ? 'SLEEPING NOW'
+                          : since == null
+                          ? 'READY WHEN YOU ARE'
+                          : 'AWAKE FOR',
+                      style: const TextStyle(
+                        color: Color(0xFFE1DDF6),
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   if (ref.read(sleepActionsProvider).canUndo)
                     IconButton(
                       tooltip: 'Undo last change',
@@ -211,28 +179,38 @@ class _Dashboard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 22),
-              Semantics(
-                label: elapsed == null
-                    ? 'No sleep recorded'
-                    : '${sleeping ? 'Asleep' : 'Awake'} for ${formatShortDuration(elapsed)}',
-                child: ExcludeSemantics(
-                  child: FittedBox(
-                    alignment: Alignment.centerLeft,
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      elapsed == null
-                          ? '00:00:00'
-                          : formatClockDuration(elapsed),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 50,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                        letterSpacing: -1.5,
+              _NowTicker(
+                clock: clock,
+                enabled: since != null,
+                interval: const Duration(seconds: 1),
+                builder: (nowUtc) {
+                  final elapsed = since == null
+                      ? null
+                      : nowUtc.difference(since);
+                  return Semantics(
+                    label: elapsed == null
+                        ? 'No sleep recorded'
+                        : '${sleeping ? 'Asleep' : 'Awake'} for ${formatShortDuration(elapsed)}',
+                    child: ExcludeSemantics(
+                      child: FittedBox(
+                        alignment: Alignment.centerLeft,
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          elapsed == null
+                              ? '00:00:00'
+                              : formatClockDuration(elapsed),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 50,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                            letterSpacing: -1.5,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 8),
               Text(
@@ -245,72 +223,50 @@ class _Dashboard extends ConsumerWidget {
                     : 'Start with a single tap',
                 style: const TextStyle(color: Color(0xFFD2D5E5), fontSize: 14),
               ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: conflictCount > 0 || active.length > 1
-                          ? () => context.go('/history')
-                          : () => _perform(
-                              context,
-                              ref,
-                              ref.read(sleepActionsProvider).toggle,
-                            ),
-                      icon: Icon(
-                        sleeping
-                            ? Icons.wb_sunny_rounded
-                            : Icons.bedtime_rounded,
-                        size: 22,
-                      ),
-                      label: Text(
-                        conflictCount > 0 || active.length > 1
-                            ? 'Review History'
-                            : sleeping
-                            ? 'Wake up'
-                            : 'Start sleep',
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: SleepPalette.lavender,
-                        foregroundColor: SleepPalette.ink,
-                      ),
-                    ),
-                  ),
-                  if (!sleeping && conflictCount == 0) ...[
-                    const SizedBox(width: 9),
-                    PopupMenuButton<int>(
-                      tooltip: 'Backdate sleep start',
-                      onSelected: (minutes) => _perform(
-                        context,
-                        ref,
-                        () => ref
-                            .read(sleepActionsProvider)
-                            .start(backdate: Duration(minutes: minutes)),
-                      ),
-                      itemBuilder: (_) => [
-                        for (final minutes in [5, 10, 15])
-                          PopupMenuItem(
-                            value: minutes,
-                            child: Text('Start $minutes min ago'),
-                          ),
-                      ],
-                      child: const SizedBox(
-                        height: 52,
-                        child: Center(
-                          child: Text(
-                            'Earlier',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              if (showEmbeddedAction) ...[
+                const SizedBox(height: 32),
+                _SleepActionControls(
+                  sleeping: sleeping,
+                  needsReview: conflictCount > 0 || active.length > 1,
+                ),
+              ],
             ],
           ),
         ),
         const SizedBox(height: 23),
+        _NowTicker(
+          clock: clock,
+          enabled: sessions.isNotEmpty,
+          interval: const Duration(minutes: 1),
+          builder: (nowUtc) => _SleepStatistics(
+            sessions: sessions,
+            nowUtc: nowUtc,
+            conflictCount: conflictCount,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SleepStatistics extends StatelessWidget {
+  const _SleepStatistics({
+    required this.sessions,
+    required this.nowUtc,
+    required this.conflictCount,
+  });
+
+  final List<SleepSession> sessions;
+  final DateTime nowUtc;
+  final int conflictCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = SleepSummary.rolling24Hours(sessions, nowUtc);
+    final activeCount = sessions.where((s) => s.isActive).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Text('At a glance', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 13),
         Row(
@@ -332,7 +288,7 @@ class _Dashboard extends ConsumerWidget {
             ),
           ],
         ),
-        if (active.length > 1 || summary.hasOverlap || conflictCount > 0) ...[
+        if (activeCount > 1 || summary.hasOverlap || conflictCount > 0) ...[
           const SizedBox(height: 14),
           Semantics(
             liveRegion: true,
@@ -348,7 +304,7 @@ class _Dashboard extends ConsumerWidget {
                       child: Text(
                         conflictCount > 0
                             ? '$conflictCount competing edit(s) preserved. Check History; no automatic overwrite.'
-                            : active.length > 1
+                            : activeCount > 1
                             ? 'Multiple active sleeps found. Check History before stopping.'
                             : 'Overlapping sleeps found. Total uses each minute once; check History.',
                       ),
@@ -364,6 +320,203 @@ class _Dashboard extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _SleepActionControls extends ConsumerWidget {
+  const _SleepActionControls({
+    this.sleeping = false,
+    this.needsReview = false,
+    this.enabled = true,
+  });
+
+  final bool sleeping;
+  final bool needsReview;
+  final bool enabled;
+
+  Future<void> _perform(
+    BuildContext context,
+    Future<bool> Function() action,
+  ) async {
+    try {
+      final changed = await action();
+      if (!context.mounted) return;
+      if (changed) {
+        unawaited(HapticFeedback.lightImpact());
+      } else {
+        _showActionMessage(
+          context,
+          'No change made. Check for an active-session conflict.',
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        _showActionMessage(context, 'Could not update this record. Try again.');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Row(
+    children: [
+      Expanded(
+        child: FilledButton.icon(
+          onPressed: !enabled
+              ? null
+              : needsReview
+              ? () => context.go('/history')
+              : () => _perform(context, ref.read(sleepActionsProvider).toggle),
+          icon: Icon(
+            needsReview
+                ? Icons.rule_rounded
+                : sleeping
+                ? Icons.wb_sunny_rounded
+                : Icons.bedtime_rounded,
+            size: 22,
+          ),
+          label: Text(
+            needsReview
+                ? 'Review History'
+                : sleeping
+                ? 'Wake up'
+                : 'Start sleep',
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: SleepPalette.lavender,
+            foregroundColor: SleepPalette.ink,
+          ),
+        ),
+      ),
+      if (enabled && !sleeping && !needsReview) ...[
+        const SizedBox(width: 9),
+        PopupMenuButton<int>(
+          tooltip: 'Backdate sleep start',
+          onSelected: (minutes) => _perform(
+            context,
+            () => ref
+                .read(sleepActionsProvider)
+                .start(backdate: Duration(minutes: minutes)),
+          ),
+          itemBuilder: (_) => [
+            for (final minutes in [5, 10, 15])
+              PopupMenuItem(
+                value: minutes,
+                child: Text('Start $minutes min ago'),
+              ),
+          ],
+          child: const SizedBox(
+            height: 52,
+            child: Center(
+              child: Text('Earlier', style: TextStyle(color: Colors.white)),
+            ),
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+void _showActionMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
+
+class _StickyActionBar extends StatelessWidget {
+  const _StickyActionBar({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      border: Border(
+        top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+    ),
+    child: Center(
+      heightFactor: 1,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: SizedBox(
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+            child: child,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Repaints only its child while visible. The clock remains the authority;
+/// neither a background service nor a persisted countdown is required.
+class _NowTicker extends StatefulWidget {
+  const _NowTicker({
+    required this.clock,
+    required this.enabled,
+    required this.interval,
+    required this.builder,
+  });
+
+  final Clock clock;
+  final bool enabled;
+  final Duration interval;
+  final Widget Function(DateTime nowUtc) builder;
+
+  @override
+  State<_NowTicker> createState() => _NowTickerState();
+}
+
+class _NowTickerState extends State<_NowTicker> with WidgetsBindingObserver {
+  Timer? _timer;
+  bool _foreground = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _restartTimer();
+  }
+
+  void _restartTimer() {
+    _timer?.cancel();
+    _timer = null;
+    if (_foreground && widget.enabled) {
+      _timer = Timer.periodic(widget.interval, (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(_NowTicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled != widget.enabled ||
+        oldWidget.interval != widget.interval) {
+      _restartTimer();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _foreground) return;
+    _foreground = foreground;
+    _restartTimer();
+    if (foreground && mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(widget.clock.nowUtc);
 }
 
 class _MetricCard extends StatelessWidget {
