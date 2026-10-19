@@ -159,7 +159,7 @@ Do not use child names, emails or other personal identifiers in document IDs. Do
 ## 5. Security and privacy requirements
 
 1. Deny all reads/writes by default. Authorize only current household members and scope every baby/session/action query to that household.
-2. Non-members cannot enumerate families or children. Revoked members lose access on the server.
+2. Non-members cannot enumerate families or children. Revoked members lose access on the server. Previously cached data on an offline, revoked device cannot be remotely erased instantaneously; do not promise remote wipe.
 3. Client cannot grant itself membership, owner role or expanded permissions. Invite issuance/redeem/revoke occurs through trusted, rate-limited function and verified membership.
 4. Invite tokens expire, are single use, do not contain child PII and are stored hashed where appropriate.
 5. Firestore Rules validate allowed fields and shapes, ownership boundaries, timestamp bounds and delete semantics to the degree feasible. Server-only fields are protected.
@@ -187,6 +187,8 @@ Deliverables:
 - A reviewer unaffiliated with the implementation records P1/P2/P3 findings; P1 issues resolved and P2 mitigations recorded.
 
 ### Phase F1: Offline single-device vertical slice
+
+**Dependency boundary:** F1 exercises Firestore's native local cache using a development-only Firebase SDK/Auth emulator configuration and a synthetic anonymous test identity. This is not the family production cloud setup. Real project provisioning, durable sign-in, household membership and cloud sync remain in F2. A device must establish the initial emulator/identity session online before airplane-mode testing.
 
 Deliverables:
 - [ ] Domain reducer/validation, time interval arithmetic, midnight/DST fixtures.
