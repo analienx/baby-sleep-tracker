@@ -36,11 +36,12 @@ final class _FamilyScreenState extends State<FamilyScreen> {
     try {
       await task();
     } on FirebaseAuthException catch (error) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _message =
               '${error.code}: ${error.message ?? "Authentication failed"}',
         );
+      }
     } catch (error) {
       if (mounted) setState(() => _message = '$error');
     } finally {

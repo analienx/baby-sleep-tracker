@@ -1,5 +1,6 @@
 'use strict';
 const crypto = require('node:crypto');
+const {FieldValue, Timestamp} = require('firebase-admin/firestore');
 const ttlMs = 24 * 60 * 60 * 1000;
 const codePattern = /^[A-Za-z0-9_-]{43}$/;
 function nonemptyName(input) {
@@ -24,8 +25,8 @@ function assertMember(snapshot, uid) {
   if (!snapshot.exists || snapshot.data().uid !== uid) throw new Error('permission-denied');
 }
 function familyService(db, admin) {
-  const stamp = () => admin.firestore.FieldValue.serverTimestamp();
-  const timestamp = ms => admin.firestore.Timestamp.fromMillis(ms);
+  const stamp = () => FieldValue.serverTimestamp();
+  const timestamp = ms => Timestamp.fromMillis(ms);
   const user = uid => db.collection('users').doc(uid);
   const family = id => db.collection('families').doc(id);
   const member = (id, uid) => family(id).collection('members').doc(uid);

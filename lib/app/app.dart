@@ -24,8 +24,8 @@ final class _BabySleepAppState extends State<BabySleepApp> {
       ShellRoute(
         builder: (context, state, child) => _TabShell(
           currentPath: state.uri.path,
-          child: child,
           familyEnabled: widget.family != null,
+          child: child,
         ),
         routes: [
           GoRoute(path: '/', builder: (_, _) => const TodayScreen()),
