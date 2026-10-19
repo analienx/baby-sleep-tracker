@@ -1,6 +1,6 @@
 # ADR-0001 — Flutter + Firebase for a family-first sleep tracker
 
-**Status:** Proposed and accepted as the initial implementation baseline  
+**Status:** Accepted as the initial implementation baseline  
 **Date:** 2026-10-19  
 **Owner:** Baby Sleep Tracker  
 **Supersedes:** None
@@ -41,6 +41,7 @@ Costs/risks:
 - Firestore offline writes are eventually consistent and same-document collisions use last-write-wins. Additional domain action logs, conflict detection and tests are mandatory.
 - Offline writes are not recoverable after device data wipe/uninstall before synchronization.
 - Cloud location choice requires deliberate provisioning; Auth/data processing geography must be evaluated separately.
+- Revoking a caregiver immediately blocks authorized server access but cannot guarantee deletion of previously cached records on an offline device.
 - Some widgets/Live Activities require Swift/Kotlin extensions, deferred outside v1.
 
 ## Hard invariants
