@@ -7,8 +7,9 @@ import '../domain/sleep_ledger.dart';
 import '../domain/sleep_repository.dart';
 import '../domain/sleep_session.dart';
 
-/// Emulator-only F1 repository, intentionally independent of the F2 household
-/// schema. Never use this path with a production Firebase project or child data.
+/// Immutable operation journal shared by the synthetic development adapter
+/// and the F2 private family scope. The legacy dev path must never be enabled
+/// against a production Firebase project.
 /// The authoritative record is the immutable operation collection: clients
 /// create unique documents instead of updating the same session document.
 final class FirestoreSleepRepository implements SleepRepository {
@@ -21,6 +22,26 @@ final class FirestoreSleepRepository implements SleepRepository {
            .doc(syntheticUserId)
            .collection('operations'),
        _syntheticUserId = syntheticUserId,
+       _newId = newId ?? const Uuid().v4 {
+    _subscription = _operations
+        .snapshots(includeMetadataChanges: true)
+        .listen(_onSnapshot, onError: _onError);
+  }
+
+  /// Creates a household-scoped repository, with actor enforced by Rules.
+  FirestoreSleepRepository.family({
+    required FirebaseFirestore firestore,
+    required String familyId,
+    required String babyId,
+    required String actorId,
+    String Function()? newId,
+  }) : _operations = firestore
+           .collection('families')
+           .doc(familyId)
+           .collection('babies')
+           .doc(babyId)
+           .collection('operations'),
+       _syntheticUserId = actorId,
        _newId = newId ?? const Uuid().v4 {
     _subscription = _operations
         .snapshots(includeMetadataChanges: true)
