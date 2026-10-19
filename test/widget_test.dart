@@ -66,6 +66,31 @@ void main() {
   });
 
   testWidgets(
+    'Quick backdate is explicit and undo removes the preview record',
+    (tester) async {
+      final clock = FakeClock(DateTime.utc(2026, 10, 19, 10));
+      final repository = PreviewSleepRepository();
+      addTearDown(repository.dispose);
+      await tester.pumpWidget(appForTest(clock: clock, repository: repository));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Earlier'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start 10 min ago'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(
+        (await repository.readSessions()).single.startedAtUtc,
+        DateTime.utc(2026, 10, 19, 9, 50),
+      );
+      expect(find.text('Wake up'), findsOneWidget);
+      await tester.tap(find.byTooltip('Undo last change'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(await repository.readSessions(), isEmpty);
+    },
+  );
+
+  testWidgets(
     'One-handed primary control and preview disclosure have semantics',
     (tester) async {
       final handle = tester.ensureSemantics();

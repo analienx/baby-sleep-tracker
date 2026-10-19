@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../../app/theme.dart';
@@ -40,6 +41,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   Widget build(BuildContext context) {
     final now = ref.watch(clockProvider).nowUtc;
     final sessions = ref.watch(sleepSessionsProvider);
+    final conflicts = ref.watch(sleepConflictsProvider);
     return PageContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +54,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           const PreviewWarning(),
           const SizedBox(height: 18),
           sessions.when(
-            data: (value) => _Dashboard(sessions: value, nowUtc: now),
+            data: (value) => _Dashboard(
+              sessions: value,
+              nowUtc: now,
+              conflictCount: conflicts.asData?.value.length ?? 0,
+            ),
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.all(40),
@@ -70,10 +76,68 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 }
 
 class _Dashboard extends ConsumerWidget {
-  const _Dashboard({required this.sessions, required this.nowUtc});
+  const _Dashboard({
+    required this.sessions,
+    required this.nowUtc,
+    required this.conflictCount,
+  });
 
   final List<SleepSession> sessions;
   final DateTime nowUtc;
+  final int conflictCount;
+
+  Future<void> _perform(
+    BuildContext context,
+    WidgetRef ref,
+    Future<bool> Function() action,
+  ) async {
+    bool changed;
+    try {
+      changed = await action();
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update this record. Try again.'),
+        ),
+      );
+      return;
+    }
+    if (!context.mounted) return;
+    if (changed) unawaited(HapticFeedback.lightImpact());
+    if (!context.mounted) return;
+    // The state change is already visible. A success Snackbar could cover the
+    // primary button on small phones and make a second one-tap action miss.
+    if (!changed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No change made. Check for an active-session conflict.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _undo(BuildContext context, WidgetRef ref) async {
+    try {
+      final restored = await ref.read(sleepActionsProvider).undo();
+      if (!restored && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot undo because this record has changed.'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Undo failed. The record was not changed.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -86,7 +150,9 @@ class _Dashboard extends ConsumerWidget {
       for (final session in sessions)
         if (session.endedAtUtc != null) session.endedAtUtc!,
     ]..sort((a, b) => b.compareTo(a));
-    final elapsed = sleeping
+    final elapsed = active.length > 1
+        ? null
+        : sleeping
         ? nowUtc.difference(active.first.startedAtUtc)
         : latestEnd.isNotEmpty
         ? nowUtc.difference(latestEnd.first)
@@ -121,7 +187,9 @@ class _Dashboard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    sleeping
+                    conflictCount > 0 || active.length > 1
+                        ? 'NEEDS REVIEW'
+                        : sleeping
                         ? 'SLEEPING NOW'
                         : elapsed == null
                         ? 'READY WHEN YOU ARE'
@@ -133,6 +201,13 @@ class _Dashboard extends ConsumerWidget {
                       fontSize: 12,
                     ),
                   ),
+                  const Spacer(),
+                  if (ref.read(sleepActionsProvider).canUndo)
+                    IconButton(
+                      tooltip: 'Undo last change',
+                      onPressed: () => _undo(context, ref),
+                      icon: const Icon(Icons.undo_rounded, color: Colors.white),
+                    ),
                 ],
               ),
               const SizedBox(height: 22),
@@ -161,7 +236,9 @@ class _Dashboard extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                sleeping
+                conflictCount > 0 || active.length > 1
+                    ? 'Check competing records in History'
+                    : sleeping
                     ? 'Started ${formatLocalTime(context, active.first.startedAtUtc)}'
                     : latestEnd.isNotEmpty
                     ? 'Last wake-up ${formatLocalTime(context, latestEnd.first)}'
@@ -169,35 +246,66 @@ class _Dashboard extends ConsumerWidget {
                 style: const TextStyle(color: Color(0xFFD2D5E5), fontSize: 14),
               ),
               const SizedBox(height: 32),
-              FilledButton.icon(
-                onPressed: () async {
-                  final changed = await ref.read(sleepActionsProvider).toggle();
-                  if (!context.mounted) return;
-                  if (changed) {
-                    await HapticFeedback.lightImpact();
-                  }
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          changed
-                              ? 'Preview updated — not saved to your device.'
-                              : 'No change made. Please try again.',
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: conflictCount > 0 || active.length > 1
+                          ? () => context.go('/history')
+                          : () => _perform(
+                              context,
+                              ref,
+                              ref.read(sleepActionsProvider).toggle,
+                            ),
+                      icon: Icon(
+                        sleeping
+                            ? Icons.wb_sunny_rounded
+                            : Icons.bedtime_rounded,
+                        size: 22,
+                      ),
+                      label: Text(
+                        conflictCount > 0 || active.length > 1
+                            ? 'Review History'
+                            : sleeping
+                            ? 'Wake up'
+                            : 'Start sleep',
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: SleepPalette.lavender,
+                        foregroundColor: SleepPalette.ink,
+                      ),
+                    ),
+                  ),
+                  if (!sleeping && conflictCount == 0) ...[
+                    const SizedBox(width: 9),
+                    PopupMenuButton<int>(
+                      tooltip: 'Backdate sleep start',
+                      onSelected: (minutes) => _perform(
+                        context,
+                        ref,
+                        () => ref
+                            .read(sleepActionsProvider)
+                            .start(backdate: Duration(minutes: minutes)),
+                      ),
+                      itemBuilder: (_) => [
+                        for (final minutes in [5, 10, 15])
+                          PopupMenuItem(
+                            value: minutes,
+                            child: Text('Start $minutes min ago'),
+                          ),
+                      ],
+                      child: const SizedBox(
+                        height: 52,
+                        child: Center(
+                          child: Text(
+                            'Earlier',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
-                    );
-                },
-                icon: Icon(
-                  sleeping ? Icons.wb_sunny_rounded : Icons.bedtime_rounded,
-                  size: 22,
-                ),
-                label: Text(sleeping ? 'Wake up' : 'Start sleep'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: SleepPalette.lavender,
-                  foregroundColor: SleepPalette.ink,
-                ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -224,6 +332,33 @@ class _Dashboard extends ConsumerWidget {
             ),
           ],
         ),
+        if (active.length > 1 || summary.hasOverlap || conflictCount > 0) ...[
+          const SizedBox(height: 14),
+          Semantics(
+            liveRegion: true,
+            child: Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        conflictCount > 0
+                            ? '$conflictCount competing edit(s) preserved. Check History; no automatic overwrite.'
+                            : active.length > 1
+                            ? 'Multiple active sleeps found. Check History before stopping.'
+                            : 'Overlapping sleeps found. Total uses each minute once; check History.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 23),
         _TimelineCard(sessions: sessions, nowUtc: nowUtc),
       ],
