@@ -94,4 +94,10 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: Compile iOS simulator app without signing
-        run: flutter build ios --simulator --no-codesign --no-pub
+        # Firebase Apple SDK 13 needs Swift 6.2; macos-15 defaults to Xcode
+        # 16.4 even though the image also provides 26.2. Pin this explicitly.
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+        run: |
+          xcodebuild -version
+          flutter build ios --simulator --no-codesign --no-pub
