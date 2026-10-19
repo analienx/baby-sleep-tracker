@@ -2,7 +2,54 @@
 
 A calm, family-first sleep tracker for Android and iPhone.
 
-**Status:** Product architecture and delivery planning. No application code has been implemented yet.
+**Status:** F0 implementation preview. The native Flutter Android/iOS shell is
+implemented, but records are **not persisted** and no Firebase project has been
+configured. Do not use this build to log real sleep or rely on it for records.
+
+## Run the F0 prototype
+
+Prerequisites: Flutter **3.47.7** (stable), Dart **3.13.5** (bundled), Android
+Studio/Android SDK for Android, or macOS/Xcode for iOS. Run from the repository
+root:
+
+```sh
+flutter pub get --enforce-lockfile
+flutter run
+```
+
+The app opens on Today. Tap **Start sleep** / **Wake up** to interact with a
+memory-only demonstration, or navigate between **Today**, **History** and
+**Trends**. Every screen marks its preview status: all entries disappear when
+the app restarts. No child profile, credentials, synthetic sleep fixture or
+Firebase network call is configured in the running app.
+
+### Development checks
+
+```sh
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+flutter build apk --debug
+```
+
+Unit tests inject a fake clock and synthetic sessions. The two golden snapshots
+under `test/goldens/` capture the light/dark Today visual baseline. Updating
+them requires an intentional review (`flutter test --update-goldens`). CI pins
+Flutter and the GitHub Actions source revisions, uses the committed
+`pubspec.lock`, scans for secrets, uploads a **debug** Android APK and checks an
+**unsigned iOS simulator build** on pull requests. No store credentials or
+production services are needed.
+
+Project layout:
+
+```text
+lib/app/                         Navigation, themes, clock and DI
+lib/features/sleep/domain/       UTC sessions, calculations, actions, contracts
+lib/features/sleep/data/         F0 memory-only preview repository
+lib/features/sleep/presentation/ Today, History, Trends
+test/domain/                     Deterministic fake-clock/time tests
+test/widget_test.dart            Navigation, semantics and visual tests
+```
 
 ## Product promise
 
@@ -44,7 +91,10 @@ Design decisions, data contracts, risks, and review requirements are documented 
 
 ## Release governance
 
-Each phase has a blocking GitHub review gate. The next phase may be developed incrementally, but no phase is considered accepted until its gate's test evidence and checklist are complete.
+Each phase has a blocking GitHub review gate. F0 is tracked in issues
+[#2](../../issues/2) and [#3](../../issues/3), and blocking review gate
+[#4](../../issues/4). No phase is accepted until test evidence and its review
+checklist are complete. See [F0 review notes](docs/F0_REVIEW.md).
 
 ## Public repository notice
 
