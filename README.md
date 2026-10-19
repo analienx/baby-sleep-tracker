@@ -36,7 +36,9 @@ Unit tests inject a fake clock and synthetic sessions. The two golden snapshots
 under `test/goldens/` capture the light/dark Today visual baseline. Updating
 them requires an intentional review (`flutter test --update-goldens`). CI pins
 Flutter and the GitHub Actions source revisions, uses the committed
-`pubspec.lock`, scans for secrets and uploads a **debug** Android APK only.
+`pubspec.lock`, scans for secrets, uploads a **debug** Android APK and checks an
+**unsigned iOS simulator build** on pull requests. No store credentials or
+production services are needed.
 
 Project layout:
 

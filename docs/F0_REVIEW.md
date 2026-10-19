@@ -3,7 +3,8 @@
 **Scope:** Issues [#2](https://github.com/analienx/baby-sleep-tracker/issues/2),
 [#3](https://github.com/analienx/baby-sleep-tracker/issues/3).
 **Blocking gate:** [G0 #4](https://github.com/analienx/baby-sleep-tracker/issues/4).
-**Decision:** Pending independent review and GitHub-hosted CI evidence.
+**Decision:** Pending independent review, final macOS CI evidence and explicit
+approval in gate #4. The first Android/quality workflow was green.
 
 ## Implemented for the first review
 
@@ -19,19 +20,20 @@
 - UTC interval domain model and union-based 24-hour aggregation with unit tests
   for midnight, Prague DST shift, time-zone change and overlapping intervals.
 - Source-pinned GitHub Actions for formatting, analysis, unit/widget/golden
-  tests, Android debug APK, and secret scanning; no store publishing, cloud
-  deployment or credentials.
+  tests, Android debug APK, unsigned iOS simulator compilation and secret
+  scanning; no store publishing, cloud deployment or credentials.
 
 ## Gate evidence to record before G0 may pass
 
 | Verification | Status |
 | --- | --- |
-| Clean Flutter 3.47.7 dependency lockfile resolution | Pending final CI evidence |
-| `dart format`, `flutter analyze`, `flutter test` | Pending final execution evidence |
-| Android debug CI artifact and exact run SHA | Pending CI run |
-| Light/dark goldens and TalkBack/VoiceOver semantics inspection | Pending independent visual/device review |
-| Flutter iOS project generated; simulator/real-device build | Not verified (macOS/Xcode required) |
-| Secret scanning and no real child PII | Pending CI secret scan and reviewer inspection |
+| Clean Flutter 3.47.7 dependency lockfile resolution | Passed in [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050) |
+| `dart format`, `flutter analyze`, 17 Flutter tests (including goldens) | Passed locally and in [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050) |
+| Android debug CI artifact and exact run SHA | Passed — [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050), code `dca9dbae8c4b6dd6e391c3736978801533e2a0a0`, debug artifact `12170429647` (7-day retention) |
+| Light/dark goldens and TalkBack/VoiceOver semantics inspection | Goldens and widget semantics passed; independent device inspection pending (goldens use Flutter test fonts) |
+| Flutter iOS project generated; unsigned simulator build | Pending macOS CI |
+| Actual iOS simulator launch and real-device interaction | Not verified (device review required) |
+| Secret scanning and no real child PII | Gitleaks passed in [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050); reviewer privacy inspection pending |
 | Independent P1/P2/P3 review recorded in gate #4 | Pending |
 
 ## Boundary / known gaps
