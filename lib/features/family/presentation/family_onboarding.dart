@@ -17,6 +17,7 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
   final _password = TextEditingController();
   bool _busy = false;
   String? _error;
+  String? _info;
 
   @override
   void dispose() {
@@ -27,14 +28,19 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
     super.dispose();
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  Future<void> _run(
+    Future<void> Function() action, {
+    String? successMessage,
+  }) async {
     if (_busy) return;
     setState(() {
       _busy = true;
       _error = null;
+      _info = null;
     });
     try {
       await action();
+      if (mounted) setState(() => _info = successMessage);
     } catch (error) {
       if (mounted) setState(() => _error = '$error');
     } finally {
@@ -134,6 +140,16 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                           ),
                     child: const Text('I already have an account — sign in'),
                   ),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => _run(
+                            () => widget.client.resetPassword(_email.text),
+                            successMessage: 'If this email is registered, a password reset message has been sent.',
+                          ),
+                    child: const Text('Forgot password?'),
+                  ),
+                  if (_info != null) Text(_info!),
                   if (_busy) const LinearProgressIndicator(),
                   if (_error != null)
                     Padding(
