@@ -97,6 +97,23 @@ void main() {
       final layoutError = tester.takeException();
       if (layoutError is FlutterError) {
         debugPrint(layoutError.toStringDeep());
+        for (final element
+            in find.byType(Row, skipOffstage: false).evaluate()) {
+          final flex = element.renderObject;
+          if (flex is! RenderFlex) continue;
+          var exceedsWidth = false;
+          flex.visitChildren((child) {
+            if (child is RenderBox) {
+              final left = (child.parentData! as FlexParentData).offset.dx;
+              if (left + child.size.width > flex.size.width + 1) {
+                exceedsWidth = true;
+              }
+            }
+          });
+          if (exceedsWidth) {
+            debugPrint('OFFENDING ROW: ${flex.toStringDeep()}');
+          }
+        }
       }
       expect(layoutError, isNull);
 
