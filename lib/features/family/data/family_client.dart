@@ -19,6 +19,14 @@ final class FamilyContext {
   }
 }
 
+/// A cached family profile is not proof that access has not been revoked.
+/// Keep provenance so the UI never implies that offline access was verified.
+final class FamilySnapshot {
+  const FamilySnapshot({required this.family, required this.isFromCache});
+  final FamilyContext? family;
+  final bool isFromCache;
+}
+
 /// Family data mutations are exclusively callable Functions; client writes to
 /// membership, baby and invitations are forbidden by Firestore Rules.
 final class FamilyClient {
@@ -32,11 +40,16 @@ final class FamilyClient {
   final FirebaseFirestore firestore;
   final FirebaseFunctions functions;
 
-  Stream<FamilyContext?> watchFamily(String uid) => firestore
+  Stream<FamilySnapshot> watchFamily(String uid) => firestore
       .collection('users')
       .doc(uid)
       .snapshots(includeMetadataChanges: true)
-      .map((doc) => FamilyContext.fromData(doc.data()));
+      .map(
+        (doc) => FamilySnapshot(
+          family: FamilyContext.fromData(doc.data()),
+          isFromCache: doc.metadata.isFromCache,
+        ),
+      );
 
   Future<FamilyContext?> currentFamily() async {
     final uid = auth.currentUser?.uid;

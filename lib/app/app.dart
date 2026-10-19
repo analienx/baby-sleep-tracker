@@ -9,9 +9,15 @@ import '../features/sleep/presentation/trends_screen.dart';
 import 'theme.dart';
 
 final class BabySleepApp extends StatefulWidget {
-  const BabySleepApp({super.key, this.familyClient, this.family});
+  const BabySleepApp({
+    super.key,
+    this.familyClient,
+    this.family,
+    this.familyFromCache = false,
+  });
   final FamilyClient? familyClient;
   final FamilyContext? family;
+  final bool familyFromCache;
 
   @override
   State<BabySleepApp> createState() => _BabySleepAppState();
@@ -25,6 +31,7 @@ final class _BabySleepAppState extends State<BabySleepApp> {
         builder: (context, state, child) => _TabShell(
           currentPath: state.uri.path,
           familyEnabled: widget.family != null,
+          familyFromCache: widget.familyFromCache,
           child: child,
         ),
         routes: [
@@ -66,10 +73,12 @@ final class _TabShell extends StatelessWidget {
     required this.currentPath,
     required this.child,
     required this.familyEnabled,
+    required this.familyFromCache,
   });
   final String currentPath;
   final Widget child;
   final bool familyEnabled;
+  final bool familyFromCache;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +89,22 @@ final class _TabShell extends StatelessWidget {
       _ => 0,
     };
     return Scaffold(
-      body: SafeArea(child: child),
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (familyFromCache)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Text(
+                  'Offline family cache — membership is not verified. '
+                  'Previously downloaded records may be stale.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            Expanded(child: child),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (selected) => context.go(switch (selected) {

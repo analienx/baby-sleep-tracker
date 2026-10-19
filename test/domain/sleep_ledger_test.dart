@@ -129,20 +129,40 @@ void main() {
     );
   });
 
-  test('rejects missing parents, cycles, illegal tombstone, non-UTC times', () {
-    expect(
-      () => SleepLedger.project([
-        op('a', parents: ['unknown']),
-      ]),
-      throwsStateError,
-    );
-    expect(
-      () => SleepLedger.project([
+  test(
+    'quarantines missing parents and cycles without losing other sleeps',
+    () {
+      final unrelated = SleepOperation(
+        id: 'valid',
+        actorId: 'parent-b',
+        recordedAtUtc: morning,
+        session: SleepSession(
+          id: 'unrelated',
+          startedAtUtc: morning,
+          endedAtUtc: null,
+        ),
+      );
+      final orphan = op('a', parents: ['unknown']);
+      final quarantined = SleepLedger.project([orphan, unrelated]);
+      expect(quarantined.sessions.single.id, 'unrelated');
+      expect(quarantined.quarantinedSessionIds, ['sleep-1']);
+
+      final cyclic = SleepLedger.project([
+        unrelated,
         op('a', parents: ['b']),
         op('b', parents: ['a']),
-      ]),
-      throwsStateError,
-    );
+      ]);
+      expect(cyclic.sessions.single.id, 'unrelated');
+      expect(cyclic.quarantinedSessionIds, ['sleep-1']);
+
+      // Once the missing parent is available, the quarantine repairs itself.
+      final recovered = SleepLedger.project([unrelated, orphan, op('unknown')]);
+      expect(recovered.sessions, hasLength(2));
+      expect(recovered.quarantinedSessionIds, isEmpty);
+    },
+  );
+
+  test('rejects illegal tombstone and non-UTC times', () {
     expect(() => op('a', deleted: true), throwsArgumentError);
     expect(
       () => SleepOperation(

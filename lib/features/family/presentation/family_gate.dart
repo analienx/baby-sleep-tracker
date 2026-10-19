@@ -34,7 +34,7 @@ final class FamilyGate extends StatelessWidget {
           ),
         );
       }
-      return StreamBuilder<FamilyContext?>(
+      return StreamBuilder<FamilySnapshot>(
         key: ValueKey(user.uid),
         stream: client.watchFamily(user.uid),
         builder: (context, familySnapshot) {
@@ -57,12 +57,29 @@ final class FamilyGate extends StatelessWidget {
               home: Scaffold(body: Center(child: CircularProgressIndicator())),
             );
           }
-          final family = familySnapshot.data;
+          final presence = familySnapshot.data;
+          final family = presence?.family;
+          if (family == null && presence?.isFromCache == true) {
+            return const MaterialApp(
+              home: Scaffold(
+                body: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Checking family access. Reconnect to the internet '
+                      'before creating or joining a family.',
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
           if (family == null) return FamilyOnboarding(client: client);
           return _FamilyWorkspace(
             key: ValueKey('${user.uid}/${family.familyId}/${family.babyId}'),
             client: client,
             family: family,
+            isFromCache: presence!.isFromCache,
             uid: user.uid,
           );
         },
@@ -76,10 +93,12 @@ final class _FamilyWorkspace extends StatefulWidget {
     super.key,
     required this.client,
     required this.family,
+    required this.isFromCache,
     required this.uid,
   });
   final FamilyClient client;
   final FamilyContext family;
+  final bool isFromCache;
   final String uid;
 
   @override
@@ -104,6 +123,10 @@ final class _FamilyWorkspaceState extends State<_FamilyWorkspace> {
   @override
   Widget build(BuildContext context) => ProviderScope(
     overrides: [sleepRepositoryProvider.overrideWithValue(repository)],
-    child: BabySleepApp(familyClient: widget.client, family: widget.family),
+    child: BabySleepApp(
+      familyClient: widget.client,
+      family: widget.family,
+      familyFromCache: widget.isFromCache,
+    ),
   );
 }

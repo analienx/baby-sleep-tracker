@@ -46,6 +46,24 @@ test('family rules block strangers, privilege escalation, updates and revocation
       .set({...op,actorId:'owner'}));
     await assertFails(carer.doc('families/secure/babies/baby/operations/bad')
       .set({...op,endedAtUtc:new Date('2026-10-18T00:00:00Z')}));
+    // Parent references must be well-formed even though their *existence*
+    // cannot be required during offline replay: a parent may still be queued.
+    await assertFails(carer.doc('families/secure/babies/baby/operations/typed')
+      .set({...op,parentIds:[true]}));
+    await assertFails(carer.doc('families/secure/babies/baby/operations/typed-later')
+      .set({...op,parentIds:['valid',42]}));
+    await assertFails(carer.doc('families/secure/babies/baby/operations/empty')
+      .set({...op,parentIds:['']}));
+    await assertFails(carer.doc('families/secure/babies/baby/operations/self')
+      .set({...op,parentIds:['self']}));
+    await assertFails(carer.doc('families/secure/babies/baby/operations/late-type')
+      .set({...op,parentIds:[...Array.from({length:19},(_,i)=>'p'+i),false]}));
+    await assertFails(carer.doc('families/secure/babies/baby/operations/duplicate')
+      .set({...op,parentIds:['valid','valid']}));
+    await assertFails(carer.doc('families/secure/babies/baby/operations/too-many')
+      .set({...op,parentIds:Array.from({length:21},(_,i)=>'parent'+i)}));
+    await assertFails(carer.doc('families/secure/babies/baby/operations/tombstone')
+      .set({...op,deleted:true,parentIds:[]}));
     // Simulate server-side revocation; no cached client retains cloud access.
     await env.withSecurityRulesDisabled(async ctx=>{
       await ctx.firestore().doc('families/secure/members/carer').delete();
