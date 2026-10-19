@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/clock.dart';
 import '../../../app/providers.dart';
@@ -17,6 +18,8 @@ class TodayScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(sleepSessionsProvider);
+    final conflicts = ref.watch(sleepConflictsProvider);
+    final conflictCount = conflicts.asData?.value.length ?? 0;
     final compact =
         MediaQuery.sizeOf(context).height < 780 ||
         MediaQuery.textScalerOf(context).scale(16) > 20;
@@ -31,8 +34,11 @@ class TodayScreen extends ConsumerWidget {
         const PreviewWarning(),
         const SizedBox(height: 18),
         sessions.when(
-          data: (value) =>
-              _Dashboard(sessions: value, showEmbeddedAction: !compact),
+          data: (value) => _Dashboard(
+            sessions: value,
+            showEmbeddedAction: !compact,
+            conflictCount: conflictCount,
+          ),
           loading: () => const Center(
             child: Padding(
               padding: EdgeInsets.all(40),
@@ -54,11 +60,14 @@ class TodayScreen extends ConsumerWidget {
         Expanded(child: PageContainer(child: content)),
         _StickyActionBar(
           child: sessions.when(
-            data: (value) => _SleepActionButton(
+            data: (value) => _SleepActionControls(
               sleeping: value.any((session) => session.isActive),
+              needsReview:
+                  conflictCount > 0 ||
+                  value.where((session) => session.isActive).length > 1,
             ),
-            loading: () => const _SleepActionButton(enabled: false),
-            error: (_, _) => const _SleepActionButton(enabled: false),
+            loading: () => const _SleepActionControls(enabled: false),
+            error: (_, _) => const _SleepActionControls(enabled: false),
           ),
         ),
       ],
@@ -67,10 +76,35 @@ class TodayScreen extends ConsumerWidget {
 }
 
 class _Dashboard extends ConsumerWidget {
-  const _Dashboard({required this.sessions, required this.showEmbeddedAction});
+  const _Dashboard({
+    required this.sessions,
+    required this.conflictCount,
+    required this.showEmbeddedAction,
+  });
 
   final List<SleepSession> sessions;
+  final int conflictCount;
   final bool showEmbeddedAction;
+
+  Future<void> _undo(BuildContext context, WidgetRef ref) async {
+    try {
+      final restored = await ref.read(sleepActionsProvider).undo();
+      if (!restored && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot undo because this record has changed.'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Undo failed. The record was not changed.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -84,7 +118,9 @@ class _Dashboard extends ConsumerWidget {
       for (final session in sessions)
         if (session.endedAtUtc != null) session.endedAtUtc!,
     ]..sort((a, b) => b.compareTo(a));
-    final since = sleeping
+    final since = active.length > 1
+        ? null
+        : sleeping
         ? active.first.startedAtUtc
         : latestEnd.isNotEmpty
         ? latestEnd.first
@@ -119,7 +155,9 @@ class _Dashboard extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      sleeping
+                      conflictCount > 0 || active.length > 1
+                          ? 'NEEDS REVIEW'
+                          : sleeping
                           ? 'SLEEPING NOW'
                           : since == null
                           ? 'READY WHEN YOU ARE'
@@ -132,6 +170,12 @@ class _Dashboard extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  if (ref.read(sleepActionsProvider).canUndo)
+                    IconButton(
+                      tooltip: 'Undo last change',
+                      onPressed: () => _undo(context, ref),
+                      icon: const Icon(Icons.undo_rounded, color: Colors.white),
+                    ),
                 ],
               ),
               const SizedBox(height: 22),
@@ -170,7 +214,9 @@ class _Dashboard extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                sleeping
+                conflictCount > 0 || active.length > 1
+                    ? 'Check competing records in History'
+                    : sleeping
                     ? 'Started ${formatLocalTime(context, active.first.startedAtUtc)}'
                     : latestEnd.isNotEmpty
                     ? 'Last wake-up ${formatLocalTime(context, latestEnd.first)}'
@@ -179,7 +225,10 @@ class _Dashboard extends ConsumerWidget {
               ),
               if (showEmbeddedAction) ...[
                 const SizedBox(height: 32),
-                _SleepActionButton(sleeping: sleeping),
+                _SleepActionControls(
+                  sleeping: sleeping,
+                  needsReview: conflictCount > 0 || active.length > 1,
+                ),
               ],
             ],
           ),
@@ -189,8 +238,11 @@ class _Dashboard extends ConsumerWidget {
           clock: clock,
           enabled: sessions.isNotEmpty,
           interval: const Duration(minutes: 1),
-          builder: (nowUtc) =>
-              _SleepStatistics(sessions: sessions, nowUtc: nowUtc),
+          builder: (nowUtc) => _SleepStatistics(
+            sessions: sessions,
+            nowUtc: nowUtc,
+            conflictCount: conflictCount,
+          ),
         ),
       ],
     );
@@ -198,14 +250,20 @@ class _Dashboard extends ConsumerWidget {
 }
 
 class _SleepStatistics extends StatelessWidget {
-  const _SleepStatistics({required this.sessions, required this.nowUtc});
+  const _SleepStatistics({
+    required this.sessions,
+    required this.nowUtc,
+    required this.conflictCount,
+  });
 
   final List<SleepSession> sessions;
   final DateTime nowUtc;
+  final int conflictCount;
 
   @override
   Widget build(BuildContext context) {
     final summary = SleepSummary.rolling24Hours(sessions, nowUtc);
+    final activeCount = sessions.where((s) => s.isActive).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,6 +288,33 @@ class _SleepStatistics extends StatelessWidget {
             ),
           ],
         ),
+        if (activeCount > 1 || summary.hasOverlap || conflictCount > 0) ...[
+          const SizedBox(height: 14),
+          Semantics(
+            liveRegion: true,
+            child: Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        conflictCount > 0
+                            ? '$conflictCount competing edit(s) preserved. Check History; no automatic overwrite.'
+                            : activeCount > 1
+                            ? 'Multiple active sleeps found. Check History before stopping.'
+                            : 'Overlapping sleeps found. Total uses each minute once; check History.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 23),
         _TimelineCard(sessions: sessions, nowUtc: nowUtc),
       ],
@@ -237,47 +322,96 @@ class _SleepStatistics extends StatelessWidget {
   }
 }
 
-class _SleepActionButton extends ConsumerWidget {
-  const _SleepActionButton({this.sleeping = false, this.enabled = true});
+class _SleepActionControls extends ConsumerWidget {
+  const _SleepActionControls({
+    this.sleeping = false,
+    this.needsReview = false,
+    this.enabled = true,
+  });
 
   final bool sleeping;
+  final bool needsReview;
   final bool enabled;
 
+  Future<void> _perform(
+    BuildContext context,
+    Future<bool> Function() action,
+  ) async {
+    try {
+      final changed = await action();
+      if (!context.mounted) return;
+      if (changed) {
+        unawaited(HapticFeedback.lightImpact());
+      } else {
+        _showActionMessage(
+          context,
+          'No change made. Check for an active-session conflict.',
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        _showActionMessage(context, 'Could not update this record. Try again.');
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) => FilledButton.icon(
-    onPressed: !enabled
-        ? null
-        : () async {
-            bool changed;
-            try {
-              changed = await ref.read(sleepActionsProvider).toggle();
-            } catch (_) {
-              if (!context.mounted) return;
-              _showActionMessage(
-                context,
-                'Preview could not update. Try again.',
-              );
-              return;
-            }
-            if (!context.mounted) return;
-            if (changed) await HapticFeedback.lightImpact();
-            if (!context.mounted) return;
-            _showActionMessage(
-              context,
-              changed
-                  ? 'Preview updated — not saved to your device.'
-                  : 'No change made. Please try again.',
-            );
-          },
-    icon: Icon(
-      sleeping ? Icons.wb_sunny_rounded : Icons.bedtime_rounded,
-      size: 22,
-    ),
-    label: Text(sleeping ? 'Wake up' : 'Start sleep'),
-    style: FilledButton.styleFrom(
-      backgroundColor: SleepPalette.lavender,
-      foregroundColor: SleepPalette.ink,
-    ),
+  Widget build(BuildContext context, WidgetRef ref) => Row(
+    children: [
+      Expanded(
+        child: FilledButton.icon(
+          onPressed: !enabled
+              ? null
+              : needsReview
+              ? () => context.go('/history')
+              : () => _perform(context, ref.read(sleepActionsProvider).toggle),
+          icon: Icon(
+            needsReview
+                ? Icons.rule_rounded
+                : sleeping
+                ? Icons.wb_sunny_rounded
+                : Icons.bedtime_rounded,
+            size: 22,
+          ),
+          label: Text(
+            needsReview
+                ? 'Review History'
+                : sleeping
+                ? 'Wake up'
+                : 'Start sleep',
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: SleepPalette.lavender,
+            foregroundColor: SleepPalette.ink,
+          ),
+        ),
+      ),
+      if (enabled && !sleeping && !needsReview) ...[
+        const SizedBox(width: 9),
+        PopupMenuButton<int>(
+          tooltip: 'Backdate sleep start',
+          onSelected: (minutes) => _perform(
+            context,
+            () => ref
+                .read(sleepActionsProvider)
+                .start(backdate: Duration(minutes: minutes)),
+          ),
+          itemBuilder: (_) => [
+            for (final minutes in [5, 10, 15])
+              PopupMenuItem(
+                value: minutes,
+                child: Text('Start $minutes min ago'),
+              ),
+          ],
+          child: const SizedBox(
+            height: 52,
+            child: Center(
+              child: Text('Earlier', style: TextStyle(color: Colors.white)),
+            ),
+          ),
+        ),
+      ],
+    ],
   );
 }
 

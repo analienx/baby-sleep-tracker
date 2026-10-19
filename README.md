@@ -2,11 +2,12 @@
 
 A calm, family-first sleep tracker for Android and iPhone.
 
-**Status:** F0 implementation preview. The native Flutter Android/iOS shell is
-implemented, but records are **not persisted** and no Firebase project has been
-configured. Do not use this build to log real sleep or rely on it for records.
+**Status:** F0 review pending; F1 algorithms and opt-in Firebase emulator
+integration are under review. The default app uses **non-persistent preview
+storage** and no production Firebase project is configured. Do not use these
+builds to log real sleep or rely on them for records.
 
-## Run the F0 prototype
+## Run the preview
 
 Prerequisites: Flutter **3.47.7** (stable), Dart **3.13.5** (bundled), Android
 Studio/Android SDK for Android, or macOS/Xcode for iOS. Run from the repository
@@ -22,6 +23,28 @@ memory-only demonstration, or navigate between **Today**, **History** and
 **Trends**. Every screen marks its preview status: all entries disappear when
 the app restarts. No child profile, credentials, synthetic sleep fixture or
 Firebase network call is configured in the running app.
+
+### Opt-in offline Firebase development mode (synthetic data only)
+
+In a separate terminal, with Firebase CLI installed:
+
+```sh
+firebase emulators:start --project demo-little-rest
+```
+
+Then run on an **Android emulator** or **iOS simulator**:
+
+```sh
+flutter run --dart-define=USE_FIREBASE_EMULATOR=true
+```
+
+The debug app connects to local Auth and Firestore emulators, signs in with a
+synthetic anonymous account, and uses the native persistent Firestore cache.
+It never falls back silently to preview storage if emulator sign-in fails.
+The Today/History banner distinguishes cached, pending and synced states.
+This mode is blocked in release builds. Physical phone host routing and
+force-stop/reboot behavior are not yet validated. See
+[F1 algorithms and smoke checklist](docs/F1_ALGORITHMS.md) for limitations.
 
 ### Development checks
 
@@ -45,9 +68,9 @@ Project layout:
 ```text
 lib/app/                         Navigation, themes, clock and DI
 lib/features/sleep/domain/       UTC sessions, calculations, actions, contracts
-lib/features/sleep/data/         F0 memory-only preview repository
+lib/features/sleep/data/         Preview and emulator-only Firestore adapters
 lib/features/sleep/presentation/ Today, History, Trends
-test/domain/                     Deterministic fake-clock/time tests
+test/domain/                     UTC/DST/operation replay and fake-clock tests
 test/widget_test.dart            Navigation, semantics and visual tests
 ```
 
@@ -93,8 +116,11 @@ Design decisions, data contracts, risks, and review requirements are documented 
 
 Each phase has a blocking GitHub review gate. F0 is tracked in issues
 [#2](../../issues/2) and [#3](../../issues/3), and blocking review gate
-[#4](../../issues/4). No phase is accepted until test evidence and its review
-checklist are complete. See [F0 review notes](docs/F0_REVIEW.md).
+[#4](../../issues/4). F1 issues [#5](../../issues/5)–[#8](../../issues/8)
+depend on that gate and the F1 review gate is [#9](../../issues/9). No phase is
+accepted until test evidence and its review checklist are complete. See
+[F0 review notes](docs/F0_REVIEW.md) and
+[F1 algorithm evidence](docs/F1_ALGORITHMS.md).
 
 ## Public repository notice
 

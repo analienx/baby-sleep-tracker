@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../domain/sleep_ledger.dart';
 import '../domain/sleep_repository.dart';
 import '../domain/sleep_session.dart';
 
@@ -11,7 +12,10 @@ final class PreviewSleepRepository implements SleepRepository {
 
   List<SleepSession> get _snapshot {
     final sessions = _sessions.values.toList()
-      ..sort((a, b) => b.startedAtUtc.compareTo(a.startedAtUtc));
+      ..sort((a, b) {
+        final byStart = b.startedAtUtc.compareTo(a.startedAtUtc);
+        return byStart != 0 ? byStart : a.id.compareTo(b.id);
+      });
     return List.unmodifiable(sessions);
   }
 
@@ -30,6 +34,19 @@ final class PreviewSleepRepository implements SleepRepository {
     _sessions[session.id] = session;
     _changes.add(_snapshot);
   }
+
+  @override
+  Future<void> remove(String id) async {
+    _sessions.remove(id);
+    _changes.add(_snapshot);
+  }
+
+  @override
+  Stream<SleepStorageStatus> watchStorageStatus() =>
+      Stream.value(const SleepStorageStatus(StoragePhase.preview));
+
+  @override
+  Stream<List<SleepConflict>> watchConflicts() => Stream.value(const []);
 
   void dispose() => _changes.close();
 }

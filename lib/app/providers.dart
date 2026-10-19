@@ -22,6 +22,14 @@ final sleepSessionsProvider = StreamProvider<List<SleepSession>>(
   (ref) => ref.watch(sleepRepositoryProvider).watchSessions(),
 );
 
+final sleepStorageProvider = StreamProvider<SleepStorageStatus>(
+  (ref) => ref.watch(sleepRepositoryProvider).watchStorageStatus(),
+);
+
+final sleepConflictsProvider = StreamProvider(
+  (ref) => ref.watch(sleepRepositoryProvider).watchConflicts(),
+);
+
 final sleepActionsProvider = Provider<SleepActions>(
   (ref) => SleepActions(
     repository: ref.watch(sleepRepositoryProvider),

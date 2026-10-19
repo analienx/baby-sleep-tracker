@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_session.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +43,69 @@ void main() {
     ], now);
     expect(summary.sleep, const Duration(hours: 3));
     expect(summary.sessionCount, 2);
+    expect(summary.overlappingSessionIds, {'a', 'b'});
+  });
+
+  test('abutting half-open sessions are not falsely called overlapping', () {
+    final now = DateTime.utc(2026, 10, 19, 12);
+    final summary = SleepSummary.rolling24Hours([
+      session(
+        'a',
+        now.subtract(const Duration(hours: 2)),
+        now.subtract(const Duration(hours: 1)),
+      ),
+      session('b', now.subtract(const Duration(hours: 1)), now),
+    ], now);
+    expect(summary.sleep, const Duration(hours: 2));
+    expect(summary.hasOverlap, isFalse);
+  });
+
+  test('randomized minute-grid oracle verifies clipped interval union', () {
+    final rng = Random(606);
+    final now = DateTime.utc(2026, 10, 19, 12);
+    for (var fixture = 0; fixture < 200; fixture++) {
+      final records = <SleepSession>[];
+      final occupied = List.filled(24 * 60, false);
+      final count = rng.nextInt(36);
+      for (var i = 0; i < count; i++) {
+        final left = rng.nextInt(36 * 60) - 6 * 60;
+        final length = rng.nextInt(180) + 1;
+        final right = left + length;
+        final start = now
+            .subtract(const Duration(hours: 24))
+            .add(Duration(minutes: left));
+        final end = start.add(Duration(minutes: length));
+        records.add(session('s$i', start, end));
+        for (var m = max(0, left); m < min(24 * 60, right); m++) {
+          occupied[m] = true;
+        }
+      }
+      final expected = occupied.where((taken) => taken).length;
+      final summary = SleepSummary.rolling24Hours(records, now);
+      expect(
+        summary.sleep.inMinutes,
+        expected,
+        reason: 'Fixture $fixture disagrees with 1440-cell reference oracle',
+      );
+      expect(summary.sleep <= const Duration(hours: 24), isTrue);
+    }
+  });
+
+  test('invalid windows are rejected, and future sleep is not counted', () {
+    final now = DateTime.utc(2026, 10, 19, 12);
+    expect(
+      () => SleepSummary.between([], fromUtc: now, toUtc: now),
+      throwsArgumentError,
+    );
+    expect(
+      () => SleepSummary.rolling24Hours([], DateTime(2026, 10, 19)),
+      throwsArgumentError,
+    );
+    final total = SleepSummary.rolling24Hours([
+      session('future', now.add(const Duration(minutes: 2)), null),
+    ], now);
+    expect(total.sleep, Duration.zero);
+    expect(total.sessionCount, 0);
   });
 
   test('Prague DST fallback measures instants, not wall clock difference', () {

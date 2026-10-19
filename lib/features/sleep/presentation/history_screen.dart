@@ -12,6 +12,7 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(sleepSessionsProvider);
+    final conflicts = ref.watch(sleepConflictsProvider);
     return PageContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -21,6 +22,26 @@ class HistoryScreen extends ConsumerWidget {
             subtitle: 'Your sleep timeline, simply told.',
           ),
           const SizedBox(height: 29),
+          if (conflicts.asData?.value.isNotEmpty ?? false) ...[
+            Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Competing edits need review'),
+                    const SizedBox(height: 8),
+                    for (final conflict in conflicts.asData!.value)
+                      Text(
+                        'Sleep ${conflict.sessionId}: ${conflict.heads.length} versions preserved. Resolution tools are not yet available in this draft.',
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           sessions.when(
             data: (value) => value.isEmpty
                 ? const _EmptyHistory()

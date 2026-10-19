@@ -127,6 +127,69 @@ void main() {
     expect(find.text('00:02:15'), findsOneWidget);
   });
 
+  testWidgets('compact Today keeps backdate alongside the sticky action', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    await tester.pumpWidget(appForTest(repository: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilledButton, 'Start sleep'), findsOneWidget);
+    final backdate = find.byTooltip('Backdate sleep start');
+    expect(backdate, findsOneWidget);
+    final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
+    expect(tester.getRect(backdate).bottom, lessThan(navigationTop));
+    await tester.tap(backdate);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start 5 min ago'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.widgetWithText(FilledButton, 'Wake up'), findsOneWidget);
+    expect((await repository.readSessions()).length, 1);
+  });
+
+  testWidgets('conflicting active sessions block the sticky toggle', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    await repository.put(
+      SleepSession(
+        id: 'one',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 9),
+        endedAtUtc: null,
+      ),
+    );
+    await repository.put(
+      SleepSession(
+        id: 'two',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 9, 30),
+        endedAtUtc: null,
+      ),
+    );
+    await tester.pumpWidget(appForTest(repository: repository));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, 'Review History'), findsOneWidget);
+    expect(find.byTooltip('Backdate sleep start'), findsNothing);
+    await tester.tap(find.text('Review History'));
+    await tester.pumpAndSettle();
+    expect(find.text('Every little rest.'), findsOneWidget);
+    expect((await repository.readSessions()).length, 2);
+  });
+
   testWidgets('History labels both sides of a cross-midnight session', (
     tester,
   ) async {
@@ -150,6 +213,31 @@ void main() {
     expect(find.text(subtitle), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Quick backdate is explicit and undo removes the preview record',
+    (tester) async {
+      final clock = FakeClock(DateTime.utc(2026, 10, 19, 10));
+      final repository = PreviewSleepRepository();
+      addTearDown(repository.dispose);
+      await tester.pumpWidget(appForTest(clock: clock, repository: repository));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Earlier'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start 10 min ago'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(
+        (await repository.readSessions()).single.startedAtUtc,
+        DateTime.utc(2026, 10, 19, 9, 50),
+      );
+      expect(find.text('Wake up'), findsOneWidget);
+      await tester.tap(find.byTooltip('Undo last change'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(await repository.readSessions(), isEmpty);
+    },
+  );
 
   testWidgets(
     'One-handed primary control and preview disclosure have semantics',

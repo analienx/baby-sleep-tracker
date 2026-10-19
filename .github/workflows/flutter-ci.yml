@@ -49,7 +49,7 @@ jobs:
       - name: Retain debug build for review
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: baby-sleep-tracker-f0-debug-${{ github.sha }}
+          name: baby-sleep-tracker-debug-${{ github.sha }}
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 7
@@ -94,10 +94,18 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: Compile iOS simulator app without signing
-        run: flutter build ios --simulator --no-codesign --no-pub
+        # Firebase Apple SDK 13 needs Swift 6.2; macos-15 defaults to Xcode
+        # 16.4 even though the image also provides 26.2. Pin this explicitly.
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+        run: |
+          xcodebuild -version
+          flutter build ios --simulator --no-codesign --no-pub
 
       - name: Boot iPhone simulator and launch the application
         shell: bash
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
         run: |
           set -euo pipefail
           SIMULATOR_UDID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; data=json.load(sys.stdin); ids=[d["udid"] for ds in data["devices"].values() for d in ds if d.get("isAvailable") and d["name"].startswith("iPhone")]; print(ids[0] if ids else "")')"
@@ -127,7 +135,7 @@ jobs:
       - name: Download exact checked APK
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: baby-sleep-tracker-f0-debug-${{ github.sha }}
+          name: baby-sleep-tracker-debug-${{ github.sha }}
           path: .smoke
 
       - name: Enable KVM acceleration

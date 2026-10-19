@@ -1,5 +1,6 @@
 import 'package:baby_sleep_tracker/features/sleep/data/preview_sleep_repository.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_actions.dart';
+import 'package:baby_sleep_tracker/features/sleep/domain/sleep_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_clock.dart';
@@ -81,4 +82,68 @@ void main() {
       expect(emitted, [0, 1]);
     },
   );
+
+  test('quick backdate and undo preserve start/end state', () async {
+    final clock = FakeClock(DateTime.utc(2026, 10, 19, 8));
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final actions = SleepActions(
+      repository: repository,
+      clock: clock,
+      newId: () => 'same-id',
+    );
+    expect(await actions.start(backdate: const Duration(minutes: 15)), isTrue);
+    expect(
+      (await repository.readSessions()).single.startedAtUtc,
+      DateTime.utc(2026, 10, 19, 7, 45),
+    );
+    expect(await actions.undo(), isTrue);
+    expect(await repository.readSessions(), isEmpty);
+    expect(await actions.undo(), isFalse);
+    expect(await actions.start(), isTrue);
+    clock.advance(const Duration(minutes: 45));
+    expect(await actions.stop(), isTrue);
+    expect(await actions.undo(), isTrue);
+    expect((await repository.readSessions()).single.isActive, isTrue);
+  });
+
+  test('conflicting multiple active records prevent arbitrary stop', () async {
+    final clock = FakeClock(DateTime.utc(2026, 10, 19, 8));
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    await repository.put(
+      SleepSession(
+        id: 'a',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 7),
+        endedAtUtc: null,
+      ),
+    );
+    await repository.put(
+      SleepSession(
+        id: 'b',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 7, 30),
+        endedAtUtc: null,
+      ),
+    );
+    final actions = SleepActions(repository: repository, clock: clock);
+    expect(await actions.stop(), isFalse);
+    expect(
+      (await repository.readSessions()).where((s) => s.isActive),
+      hasLength(2),
+    );
+  });
+
+  test('an invalid backdate cannot mutate history', () async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final actions = SleepActions(
+      repository: repository,
+      clock: FakeClock(DateTime.utc(2026, 10, 19, 8)),
+    );
+    await expectLater(
+      actions.start(backdate: const Duration(days: 2)),
+      throwsArgumentError,
+    );
+    expect(await repository.readSessions(), isEmpty);
+  });
 }

@@ -38,4 +38,20 @@ void main() {
       const Duration(hours: 1, minutes: 45),
     );
   });
+
+  test('rejects impossible 25-hour sessions and empty IDs', () {
+    final start = DateTime.utc(2026, 10, 19, 8);
+    expect(
+      () => SleepSession(id: ' ', startedAtUtc: start, endedAtUtc: null),
+      throwsArgumentError,
+    );
+    expect(
+      () => SleepSession(
+        id: '25-hours',
+        startedAtUtc: start,
+        endedAtUtc: start.add(const Duration(hours: 25)),
+      ),
+      throwsArgumentError,
+    );
+  });
 }
