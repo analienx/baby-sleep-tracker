@@ -531,7 +531,10 @@ class _TimelineCard extends StatelessWidget {
                             height: 29,
                             decoration: BoxDecoration(
                               color: occupied
-                                  ? SleepPalette.lavender
+                                  ? Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? SleepPalette.lavender
+                                        : SleepPalette.daytimeChart
                                   : Theme.of(context)
                                         .colorScheme
                                         .surfaceContainerHighest,

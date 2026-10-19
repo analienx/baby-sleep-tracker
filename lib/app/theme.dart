@@ -5,6 +5,8 @@ abstract final class SleepPalette {
   static const twilight = Color(0xFF27324D);
   static const lavender = Color(0xFFC6B9F0);
   static const sage = Color(0xFFABCDBA);
+  // Darker sage for readable non-text chart marks on cream/light surfaces.
+  static const daytimeChart = Color(0xFF44745F);
   static const cream = Color(0xFFF8F6F2);
   static const night = Color(0xFF111622);
 }

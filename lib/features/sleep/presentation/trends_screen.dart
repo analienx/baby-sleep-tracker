@@ -208,7 +208,11 @@ class _DayRow extends StatelessWidget {
         ? 0.0
         : (day.recordedSleep.inMicroseconds / fullDayMicros).clamp(0.0, 1.0);
     final scheme = Theme.of(context).colorScheme;
-    final highlight = day.isToday ? scheme.primary : SleepPalette.sage;
+    final highlight = day.isToday
+        ? scheme.primary
+        : Theme.of(context).brightness == Brightness.dark
+        ? SleepPalette.sage
+        : SleepPalette.daytimeChart;
     return Semantics(
       container: true,
       label: strings.trendsDayAccessible(

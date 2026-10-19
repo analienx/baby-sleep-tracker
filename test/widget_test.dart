@@ -1,5 +1,6 @@
 import 'package:baby_sleep_tracker/app/app.dart';
 import 'package:baby_sleep_tracker/app/providers.dart';
+import 'package:baby_sleep_tracker/app/theme.dart';
 import 'package:baby_sleep_tracker/features/sleep/data/preview_sleep_repository.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_ledger.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_repository.dart';
@@ -31,6 +32,29 @@ void main() {
   setUp(() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
+  });
+
+  test('sleep chart marks exceed 3:1 non-text contrast on both themes', () {
+    double contrast(Color first, Color second) {
+      final a = first.computeLuminance();
+      final b = second.computeLuminance();
+      return (a > b ? a + .05 : b + .05) / (a > b ? b + .05 : a + .05);
+    }
+
+    expect(
+      contrast(
+        SleepPalette.daytimeChart,
+        SleepTheme.light().colorScheme.surfaceContainerHighest,
+      ),
+      greaterThanOrEqualTo(3),
+    );
+    expect(
+      contrast(
+        SleepPalette.sage,
+        SleepTheme.dark().colorScheme.surfaceContainerHighest,
+      ),
+      greaterThanOrEqualTo(3),
+    );
   });
   testWidgets('Today, History and Trends are reachable from the main nav', (
     tester,

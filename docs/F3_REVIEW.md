@@ -57,6 +57,8 @@ tests. Do not use any preview records as real infant data.
 - [x] Seven-day absent/partial days and cross-midnight overlapping totals.
 - [x] Europe/Prague spring 23-hour/autumn 25-hour days.
 - [x] Compact 320×568, 200% text, one-tap action and semantics assertion.
+- [x] Day/night chart marks pass automated 3:1 non-text color contrast check
+  against their theme tracks (light daytime sage ≈4:1; dark sage ≈9:1).
 - [x] Light/dark golden baselines: Today, Trends, Settings.
 - [x] Preferences in-memory fake in widget suite; disabled family actions.
 - [ ] Android debug APK / unsigned iOS simulator build on this PR's head.
