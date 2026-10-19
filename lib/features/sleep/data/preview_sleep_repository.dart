@@ -42,6 +42,12 @@ final class PreviewSleepRepository implements SleepRepository {
   }
 
   @override
+  Future<void> resolveConflict(
+    SleepConflict conflict,
+    SleepSession? selected,
+  ) => Future.error(StateError('Preview history has no revision conflicts.'));
+
+  @override
   Stream<SleepStorageStatus> watchStorageStatus() =>
       Stream.value(const SleepStorageStatus(StoragePhase.preview));
 

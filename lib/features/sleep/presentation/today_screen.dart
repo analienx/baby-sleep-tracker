@@ -228,6 +228,7 @@ class _Dashboard extends ConsumerWidget {
                 _SleepActionControls(
                   sleeping: sleeping,
                   needsReview: conflictCount > 0 || active.length > 1,
+                  onDarkSurface: true,
                 ),
               ],
             ],
@@ -327,11 +328,13 @@ class _SleepActionControls extends ConsumerWidget {
     this.sleeping = false,
     this.needsReview = false,
     this.enabled = true,
+    this.onDarkSurface = false,
   });
 
   final bool sleeping;
   final bool needsReview;
   final bool enabled;
+  final bool onDarkSurface;
 
   Future<void> _perform(
     BuildContext context,
@@ -403,10 +406,17 @@ class _SleepActionControls extends ConsumerWidget {
                 child: Text('Start $minutes min ago'),
               ),
           ],
-          child: const SizedBox(
+          child: SizedBox(
             height: 52,
             child: Center(
-              child: Text('Earlier', style: TextStyle(color: Colors.white)),
+              child: Text(
+                'Earlier',
+                style: TextStyle(
+                  color: onDarkSurface
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
             ),
           ),
         ),

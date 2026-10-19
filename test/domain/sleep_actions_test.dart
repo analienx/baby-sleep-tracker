@@ -146,4 +146,125 @@ void main() {
     );
     expect(await repository.readSessions(), isEmpty);
   });
+
+  test('missed nap can be added, corrected, deleted and restored', () async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final actions = SleepActions(
+      repository: repository,
+      clock: FakeClock(DateTime.utc(2026, 10, 19, 12)),
+      newId: () => 'missed-nap',
+    );
+    expect(
+      await actions.addCompleted(
+        DateTime.utc(2026, 10, 18, 23, 45),
+        DateTime.utc(2026, 10, 19, 0, 25),
+      ),
+      isTrue,
+    );
+    final original = (await repository.readSessions()).single;
+    expect(original.id, 'missed-nap');
+    expect(
+      await actions.correct(
+        original,
+        startUtc: DateTime.utc(2026, 10, 18, 23, 40),
+        endUtc: DateTime.utc(2026, 10, 19, 0, 30),
+      ),
+      isTrue,
+    );
+    expect(await actions.undo(), isTrue);
+    expect((await repository.readSessions()).single, original);
+
+    expect(await actions.delete(original), isTrue);
+    expect(await repository.readSessions(), isEmpty);
+    expect(await actions.undo(), isTrue);
+    expect((await repository.readSessions()).single, original);
+  });
+
+  test('stale editor cannot delete or overwrite a newer correction', () async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final original = SleepSession(
+      id: 'edit-me',
+      startedAtUtc: DateTime.utc(2026, 10, 19, 8),
+      endedAtUtc: DateTime.utc(2026, 10, 19, 9),
+    );
+    await repository.put(original);
+    final actions = SleepActions(
+      repository: repository,
+      clock: FakeClock(DateTime.utc(2026, 10, 19, 12)),
+    );
+    final newer = original.corrected(
+      startUtc: DateTime.utc(2026, 10, 19, 8, 10),
+      endUtc: DateTime.utc(2026, 10, 19, 9),
+    );
+    await repository.put(newer);
+    expect(await actions.delete(original), isFalse);
+    expect(
+      await actions.correct(
+        original,
+        startUtc: DateTime.utc(2026, 10, 19, 8, 20),
+        endUtc: DateTime.utc(2026, 10, 19, 9),
+      ),
+      isFalse,
+    );
+    expect((await repository.readSessions()).single, newer);
+  });
+
+  test('invalid and future finished ranges cannot mutate history', () async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final actions = SleepActions(
+      repository: repository,
+      clock: FakeClock(DateTime.utc(2026, 10, 19, 12)),
+    );
+    await expectLater(
+      actions.addCompleted(
+        DateTime.utc(2026, 10, 19, 10),
+        DateTime.utc(2026, 10, 19, 9),
+      ),
+      throwsArgumentError,
+    );
+    await expectLater(
+      actions.addCompleted(
+        DateTime.utc(2026, 10, 19, 10),
+        DateTime.utc(2026, 10, 19, 13),
+      ),
+      throwsArgumentError,
+    );
+    await expectLater(
+      actions.addCompleted(
+        DateTime.utc(2026, 10, 17, 9),
+        DateTime.utc(2026, 10, 18, 10),
+      ),
+      throwsArgumentError,
+    );
+    expect(await repository.readSessions(), isEmpty);
+  });
+
+  test('overlap is preserved as two records for review', () async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    var counter = 0;
+    final actions = SleepActions(
+      repository: repository,
+      clock: FakeClock(DateTime.utc(2026, 10, 19, 12)),
+      newId: () => 'id-${counter++}',
+    );
+    expect(
+      await actions.addCompleted(
+        DateTime.utc(2026, 10, 19, 8),
+        DateTime.utc(2026, 10, 19, 9),
+      ),
+      isTrue,
+    );
+    expect(
+      await actions.addCompleted(
+        DateTime.utc(2026, 10, 19, 8, 30),
+        DateTime.utc(2026, 10, 19, 9, 30),
+      ),
+      isTrue,
+    );
+    expect(await repository.readSessions(), hasLength(2));
+  });
 }
