@@ -14,6 +14,10 @@ StorageEnvironment get appStorageEnvironment {
   return StorageEnvironment.volatilePreview;
 }
 
+final storageEnvironmentProvider = Provider<StorageEnvironment>(
+  (ref) => appStorageEnvironment,
+);
+
 String formatClockDuration(Duration duration) {
   final value = duration.isNegative ? Duration.zero : duration;
   final hours = value.inHours.toString().padLeft(2, '0');
@@ -83,9 +87,10 @@ class PreviewWarning extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(sleepStorageProvider);
+    final environment = ref.watch(storageEnvironmentProvider);
     final message = state.when(
-      data: (status) => storageMessage(appStorageEnvironment, status),
-      loading: () => storageMessage(appStorageEnvironment, null),
+      data: (status) => storageMessage(environment, status),
+      loading: () => storageMessage(environment, null),
       error: (_, _) => 'Storage error. Do not assume this change was synced.',
     );
     return Semantics(
@@ -132,18 +137,18 @@ class PageContainer extends StatelessWidget {
   );
 }
 
-class _PreviewBadge extends StatelessWidget {
+class _PreviewBadge extends ConsumerWidget {
   const _PreviewBadge();
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context, WidgetRef ref) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(100),
       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
     ),
     child: Text(
-      storageBadge(appStorageEnvironment),
+      storageBadge(ref.watch(storageEnvironmentProvider)),
       style: Theme.of(context).textTheme.labelSmall
           ?.copyWith(letterSpacing: 1, fontWeight: FontWeight.w700),
     ),
