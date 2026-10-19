@@ -117,17 +117,19 @@ class _Dashboard extends ConsumerWidget {
                     size: 22,
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    sleeping
-                        ? 'SLEEPING NOW'
-                        : since == null
-                        ? 'READY WHEN YOU ARE'
-                        : 'AWAKE FOR',
-                    style: const TextStyle(
-                      color: Color(0xFFE1DDF6),
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                  Expanded(
+                    child: Text(
+                      sleeping
+                          ? 'SLEEPING NOW'
+                          : since == null
+                          ? 'READY WHEN YOU ARE'
+                          : 'AWAKE FOR',
+                      style: const TextStyle(
+                        color: Color(0xFFE1DDF6),
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],

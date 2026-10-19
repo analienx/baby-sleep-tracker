@@ -4,7 +4,6 @@ import 'package:baby_sleep_tracker/features/sleep/data/preview_sleep_repository.
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_session.dart';
 import 'package:baby_sleep_tracker/features/sleep/presentation/presentation_helpers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -95,28 +94,7 @@ void main() {
       expect(bounds.top, greaterThanOrEqualTo(0));
       expect(bounds.bottom, lessThan(navigationTop));
       expect(bounds.height, greaterThanOrEqualTo(48));
-      final layoutError = tester.takeException();
-      if (layoutError is FlutterError) {
-        debugPrint(layoutError.toStringDeep());
-        for (final element
-            in find.byType(Row, skipOffstage: false).evaluate()) {
-          final flex = element.renderObject;
-          if (flex is! RenderFlex) continue;
-          var exceedsWidth = false;
-          flex.visitChildren((child) {
-            if (child is RenderBox) {
-              final left = (child.parentData! as FlexParentData).offset.dx;
-              if (left + child.size.width > flex.size.width + 1) {
-                exceedsWidth = true;
-              }
-            }
-          });
-          if (exceedsWidth) {
-            debugPrint('OFFENDING ROW: ${flex.toStringDeep()}');
-          }
-        }
-      }
-      expect(layoutError, isNull);
+      expect(tester.takeException(), isNull);
 
       await tester.tap(action);
       await tester.pump();

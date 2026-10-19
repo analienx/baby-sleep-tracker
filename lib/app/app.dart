@@ -59,15 +59,9 @@ final class _TabShell extends StatelessWidget {
       '/trends' => 2,
       _ => 0,
     };
-    final compactNavigation =
-        MediaQuery.sizeOf(context).width < 375 ||
-        MediaQuery.textScalerOf(context).scale(16) > 20;
     return Scaffold(
       body: SafeArea(child: child),
       bottomNavigationBar: NavigationBar(
-        labelBehavior: compactNavigation
-            ? NavigationDestinationLabelBehavior.onlyShowSelected
-            : NavigationDestinationLabelBehavior.alwaysShow,
         selectedIndex: index,
         onDestinationSelected: (selected) => context.go(switch (selected) {
           1 => '/history',
