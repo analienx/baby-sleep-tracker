@@ -2,10 +2,11 @@
 
 A calm, family-first sleep tracker for Android and iPhone.
 
-**Status:** F0 review pending; F1 algorithms and opt-in Firebase emulator
-integration are under review. The default app uses **non-persistent preview
-storage** and no production Firebase project is configured. Do not use these
-builds to log real sleep or rely on them for records.
+**Status:** F0/F1 remain draft review work; F2 family security is not yet
+implemented. F3 experience/export work is stacked on the F1 History draft.
+The default app uses **non-persistent preview storage** and no production
+Firebase project is configured. Do not use these builds to log real sleep or
+rely on them for records.
 
 ## Run the preview
 
@@ -20,9 +21,20 @@ flutter run
 
 The app opens on Today. Tap **Start sleep** / **Wake up** to interact with a
 memory-only demonstration, or navigate between **Today**, **History** and
-**Trends**. Every screen marks its preview status: all entries disappear when
+**Trends**. Settings (gear icon) provides a device-saved appearance preference
+and JSON/CSV sharing of the accepted session snapshot. The seven-day view
+uses local civil days, marks absent records as unknown, and labels today as
+incomplete. Every screen marks its preview status: all entries disappear when
 the app restarts. No child profile, credentials, synthetic sleep fixture or
 Firebase network call is configured in the running app.
+
+**F3 limitations:** Export does not include the immutable operation audit
+journal or unresolved competing versions. In preview mode, exported records
+are not durable. The share sheet may stage temporary files in the app cache;
+use a private destination and remove unnecessary copies. Family invitations,
+caregiver revocation, account recovery, child/household deletion requests and
+cloud-verifiable export are disabled until F2 backend security is implemented
+and reviewed. No deletion request is sent from this preview.
 
 ### Opt-in offline Firebase development mode (synthetic data only)
 
@@ -55,8 +67,8 @@ flutter test
 flutter build apk --debug
 ```
 
-Unit tests inject a fake clock and synthetic sessions. The two golden snapshots
-under `test/goldens/` capture the light/dark Today visual baseline. Updating
+Unit tests inject a fake clock and synthetic sessions. Six golden snapshots
+under `test/goldens/` capture light/dark Today, Trends and Settings. Updating
 them requires an intentional review (`flutter test --update-goldens`). CI pins
 Flutter and the GitHub Actions source revisions, uses the committed
 `pubspec.lock`, scans for secrets, uploads a **debug** Android APK and checks an
@@ -70,6 +82,8 @@ lib/app/                         Navigation, themes, clock and DI
 lib/features/sleep/domain/       UTC sessions, calculations, actions, contracts
 lib/features/sleep/data/         Preview and emulator-only Firestore adapters
 lib/features/sleep/presentation/ Today, History, Trends
+lib/features/settings/           Appearance, export and disabled family controls
+lib/l10n/                        English message bundle and localization API
 test/domain/                     UTC/DST/operation replay and fake-clock tests
 test/widget_test.dart            Navigation, semantics and visual tests
 ```
@@ -120,7 +134,8 @@ Each phase has a blocking GitHub review gate. F0 is tracked in issues
 depend on that gate and the F1 review gate is [#9](../../issues/9). No phase is
 accepted until test evidence and its review checklist are complete. See
 [F0 review notes](docs/F0_REVIEW.md) and
-[F1 algorithm evidence](docs/F1_ALGORITHMS.md).
+[F1 algorithm evidence](docs/F1_ALGORITHMS.md) and
+[F3 review evidence](docs/F3_REVIEW.md).
 
 ## Public repository notice
 

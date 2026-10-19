@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/sleep/presentation/history_screen.dart';
 import '../features/sleep/presentation/today_screen.dart';
 import '../features/sleep/presentation/trends_screen.dart';
+import '../features/settings/settings_screen.dart';
+import '../l10n/app_localizations.dart';
 import 'theme.dart';
 
 final class BabySleepApp extends StatefulWidget {
@@ -14,9 +20,46 @@ final class BabySleepApp extends StatefulWidget {
 }
 
 final class _BabySleepAppState extends State<BabySleepApp> {
+  static const _appearanceKey = 'appearance-mode-v1';
+  ThemeMode _appearance = ThemeMode.system;
+  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadAppearance());
+  }
+
+  Future<void> _loadAppearance() async {
+    try {
+      final value = await _preferences.getString(_appearanceKey);
+      if (!mounted) return;
+      setState(() {
+        _appearance = ThemeMode.values.firstWhere(
+          (mode) => mode.name == value,
+          orElse: () => ThemeMode.system,
+        );
+      });
+    } catch (_) {
+      // Retain the OS appearance when platform preferences are unavailable.
+    }
+  }
+
+  Future<void> _changeAppearance(ThemeMode mode) async {
+    setState(() => _appearance = mode);
+    await _preferences.setString(_appearanceKey, mode.name);
+  }
+
   late final GoRouter _router = GoRouter(
     initialLocation: '/',
     routes: [
+      GoRoute(
+        path: '/settings',
+        builder: (_, _) => SettingsScreen(
+          appearance: _appearance,
+          onAppearanceChanged: _changeAppearance,
+        ),
+      ),
       ShellRoute(
         builder: (context, state, child) =>
             _TabShell(currentPath: state.uri.path, child: child),
@@ -41,7 +84,14 @@ final class _BabySleepAppState extends State<BabySleepApp> {
     debugShowCheckedModeBanner: false,
     theme: SleepTheme.light(),
     darkTheme: SleepTheme.dark(),
-    themeMode: ThemeMode.system,
+    themeMode: _appearance,
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+    ],
+    supportedLocales: AppLocalizations.supportedLocales,
     routerConfig: _router,
   );
 }
@@ -54,6 +104,7 @@ final class _TabShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLocalizations.of(context);
     final index = switch (currentPath) {
       '/history' => 1,
       '/trends' => 2,
@@ -68,21 +119,21 @@ final class _TabShell extends StatelessWidget {
           2 => '/trends',
           _ => '/',
         }),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.nightlight_outlined),
-            selectedIcon: Icon(Icons.nightlight_round),
-            label: 'Today',
+            icon: const Icon(Icons.nightlight_outlined),
+            selectedIcon: const Icon(Icons.nightlight_round),
+            label: strings.navToday,
           ),
           NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'History',
+            icon: const Icon(Icons.calendar_month_outlined),
+            selectedIcon: const Icon(Icons.calendar_month),
+            label: strings.navHistory,
           ),
           NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Trends',
+            icon: const Icon(Icons.insights_outlined),
+            selectedIcon: const Icon(Icons.insights),
+            label: strings.navTrends,
           ),
         ],
       ),

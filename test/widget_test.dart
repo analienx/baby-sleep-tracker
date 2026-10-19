@@ -9,6 +9,8 @@ import 'package:baby_sleep_tracker/features/sleep/presentation/presentation_help
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 import 'support/fake_clock.dart';
 
@@ -26,6 +28,10 @@ Widget appForTest({PreviewSleepRepository? repository, FakeClock? clock}) =>
     );
 
 void main() {
+  setUp(() {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+  });
   testWidgets('Today, History and Trends are reachable from the main nav', (
     tester,
   ) async {
@@ -45,6 +51,116 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Start sleep'), findsOneWidget);
   });
+
+  testWidgets(
+    'Settings are reachable, but unimplemented family actions are disabled',
+    (tester) async {
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Settings and privacy'));
+      await tester.pumpAndSettle();
+      expect(find.text('Settings & privacy'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Invite a caregiver'), 200);
+      final invite = tester.widget<ListTile>(
+        find.widgetWithText(ListTile, 'Invite a caregiver'),
+      );
+      expect(invite.enabled, isFalse);
+      await tester.scrollUntilVisible(find.text('Share JSON'), 200);
+      expect(find.text('Share JSON'), findsOneWidget);
+      expect(find.text('Share CSV'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Delete household data'), 200);
+      final delete = tester.widget<ListTile>(
+        find.widgetWithText(ListTile, 'Delete household data'),
+      );
+      expect(delete.enabled, isFalse);
+    },
+  );
+
+  testWidgets('Trends distinguish zero logs from recorded sleep', (
+    tester,
+  ) async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(appForTest(repository: repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trends'));
+    await tester.pumpAndSettle();
+    expect(find.text('A little story starts here'), findsOneWidget);
+    expect(find.text('No entries'), findsOneWidget);
+
+    await repository.put(
+      SleepSession(
+        id: 'one',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 8),
+        endedAtUtc: DateTime.utc(2026, 10, 19, 9),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('The last seven days'), findsOneWidget);
+    expect(find.text('1h 0m'), findsWidgets);
+    expect(
+      find.bySemanticsLabel(RegExp('day not yet complete')),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
+
+  testWidgets('Appearance changes to dark and can be restored to system', (
+    tester,
+  ) async {
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Settings and privacy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    await tester.tap(find.byTooltip('Settings and privacy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Follow my phone'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.system,
+    );
+  });
+
+  testWidgets(
+    'Compact high-text-scale view retains accessible primary action',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+      });
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      final action = find.widgetWithText(FilledButton, 'Start sleep');
+      expect(action, findsOneWidget);
+      final rect = tester.getRect(action);
+      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(rect.bottom, lessThan(568 - 76));
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Trends'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Start and stop are a single tap and visible in History', (
     tester,
@@ -352,6 +468,44 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/today_${brightness.name}.png'),
+      );
+    });
+
+    testWidgets('$brightness Trends visual baseline', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.platformBrightnessTestValue = brightness;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearPlatformBrightnessTestValue();
+      });
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Trends'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/trends_${brightness.name}.png'),
+      );
+    });
+
+    testWidgets('$brightness Settings visual baseline', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.platformBrightnessTestValue = brightness;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearPlatformBrightnessTestValue();
+      });
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Settings and privacy'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/settings_${brightness.name}.png'),
       );
     });
   }
