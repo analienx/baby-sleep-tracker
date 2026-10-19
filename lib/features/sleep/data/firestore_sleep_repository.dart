@@ -236,7 +236,7 @@ final class FirestoreSleepRepository implements SleepRepository {
       listener.add,
       onError: listener.addError,
     );
-    if (_firstSnapshot.isCompleted && _error == null) {
+    if (_hasSnapshot) {
       listener.add(_projection.sessions);
     }
     listener.onCancel = subscription.cancel;
@@ -255,7 +255,7 @@ final class FirestoreSleepRepository implements SleepRepository {
       listener.add,
       onError: listener.addError,
     );
-    if (_firstSnapshot.isCompleted && _error == null) {
+    if (_hasSnapshot) {
       listener.add(_projection.conflicts);
     }
     listener.onCancel = subscription.cancel;
