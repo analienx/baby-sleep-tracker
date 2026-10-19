@@ -3,8 +3,8 @@
 **Scope:** Issues [#2](https://github.com/analienx/baby-sleep-tracker/issues/2),
 [#3](https://github.com/analienx/baby-sleep-tracker/issues/3).
 **Blocking gate:** [G0 #4](https://github.com/analienx/baby-sleep-tracker/issues/4).
-**Decision:** Pending independent review, final macOS CI evidence and explicit
-approval in gate #4. The first Android/quality workflow was green.
+**Decision:** Pending independent review and explicit approval in gate #4.
+Automated Android, unsigned iOS, quality and secret checks are green.
 
 ## Implemented for the first review
 
@@ -27,13 +27,14 @@ approval in gate #4. The first Android/quality workflow was green.
 
 | Verification | Status |
 | --- | --- |
-| Clean Flutter 3.47.7 dependency lockfile resolution | Passed in [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050) |
-| `dart format`, `flutter analyze`, 17 Flutter tests (including goldens) | Passed locally and in [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050) |
-| Android debug CI artifact and exact run SHA | Passed — [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050), code `dca9dbae8c4b6dd6e391c3736978801533e2a0a0`, debug artifact `12170429647` (7-day retention) |
+| Clean Flutter 3.47.7 dependency lockfile resolution | Passed in [CI #4](https://github.com/analienx/baby-sleep-tracker/actions/runs/39219324286) |
+| `dart format`, `flutter analyze`, 17 Flutter tests (including goldens) | Passed locally and in [CI #4](https://github.com/analienx/baby-sleep-tracker/actions/runs/39219324286) |
+| Android debug CI artifact and exact run SHA | Passed — [CI #4](https://github.com/analienx/baby-sleep-tracker/actions/runs/39219324286), code `aab6d073a131e35638d158d092db41d776ecf516`, artifact `12170813834` (7-day retention) |
 | Light/dark goldens and TalkBack/VoiceOver semantics inspection | Goldens and widget semantics passed; independent device inspection pending (goldens use Flutter test fonts) |
-| Flutter iOS project generated; unsigned simulator build | Pending macOS CI |
+| Flutter iOS project generated; unsigned simulator build | Passed on macOS 15 in [CI #4](https://github.com/analienx/baby-sleep-tracker/actions/runs/39219324286) |
 | Actual iOS simulator launch and real-device interaction | Not verified (device review required) |
-| Secret scanning and no real child PII | Gitleaks passed in [CI #2](https://github.com/analienx/baby-sleep-tracker/actions/runs/39218592050); reviewer privacy inspection pending |
+| Secret scanning and no real child PII | Gitleaks passed in [CI #4](https://github.com/analienx/baby-sleep-tracker/actions/runs/39219324286); reviewer privacy inspection pending |
+| Test runner fail-closed negative probe | A deliberately failing temporary test produced exit code 1 locally under `flutter test --no-pub`; removed before commit. Actual red GitHub Actions run not performed. |
 | Independent P1/P2/P3 review recorded in gate #4 | Pending |
 
 ## Boundary / known gaps
