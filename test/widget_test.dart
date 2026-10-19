@@ -94,7 +94,11 @@ void main() {
       expect(bounds.top, greaterThanOrEqualTo(0));
       expect(bounds.bottom, lessThan(navigationTop));
       expect(bounds.height, greaterThanOrEqualTo(48));
-      expect(tester.takeException(), isNull);
+      final layoutError = tester.takeException();
+      if (layoutError is FlutterError) {
+        debugPrint(layoutError.toStringDeep());
+      }
+      expect(layoutError, isNull);
 
       await tester.tap(action);
       await tester.pump();
