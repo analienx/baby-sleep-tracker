@@ -42,9 +42,7 @@ void main() {
     expect(find.textContaining('not saved'), findsNothing);
   });
 
-  testWidgets('family emulator shows pending and cached truthfully', (
-    tester,
-  ) async {
+  testWidgets('family emulator shows pending state truthfully', (tester) async {
     await tester.pumpWidget(
       familyStatusView(
         StorageEnvironment.familyEmulator,
@@ -54,6 +52,9 @@ void main() {
     await tester.pump();
     expect(find.text('FAMILY DEV'), findsOneWidget);
     expect(find.textContaining('pending server sync'), findsOneWidget);
+  });
+
+  testWidgets('family emulator shows cached state truthfully', (tester) async {
     await tester.pumpWidget(
       familyStatusView(
         StorageEnvironment.familyEmulator,
