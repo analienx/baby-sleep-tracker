@@ -76,6 +76,14 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                   ),
                   const Text('Your family sleep journal, private by default.'),
                   const SizedBox(height: 22),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SelectableText(
+                        _error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
                   TextField(
                     controller: _baby,
                     maxLength: 50,
@@ -160,14 +168,6 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                   AccountDeletionAction(client: widget.client),
                   if (_info != null) Text(_info!),
                   if (_busy) const LinearProgressIndicator(),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: SelectableText(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
                 ],
               ),
             ),

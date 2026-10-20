@@ -94,7 +94,12 @@ void main() {
     await application.main();
     await until(find.text('Create family'), 'Auth emulator onboarding');
     await tester.enterText(find.byType(TextField).first, 'Synthetic Infant');
+    // Flush the entered name and reveal the action before tapping; stale
+    // input focus or a virtual keyboard can swallow the first real-device tap.
+    await tester.pump();
+    await tester.ensureVisible(find.text('Create family'));
     await tester.tap(find.text('Create family'));
+    await tester.pump();
     await until(find.text('Start sleep'), 'family Today');
     expect(find.text('FAMILY DEV'), findsOneWidget);
 
