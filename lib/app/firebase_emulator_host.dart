@@ -30,8 +30,9 @@ String resolveFirebaseEmulatorHost({
         (p[0] == 172 && p[1] >= 16 && p[1] <= 31) ||
         (p[0] == 192 && p[1] == 168) ||
         p[0] == 127;
-    if (!isPrivate)
+    if (!isPrivate) {
       throw ArgumentError('Emulator address must be private or loopback.');
+    }
     return host;
   }
   if (host == 'localhost' || RegExp(r'^[a-zA-Z0-9-]+\.local$').hasMatch(host)) {

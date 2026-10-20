@@ -1,6 +1,8 @@
 'use strict';
 const admin = require('firebase-admin');
 const {onCall,HttpsError} = require('firebase-functions/v2/https');
+const {defineSecret} = require('firebase-functions/params');
+const abusePepper = defineSecret('FAMILY_ABUSE_PEPPER');
 const {familyService} = require('./services');
 admin.initializeApp();
 const handlers = familyService(admin.firestore(),admin);
@@ -20,6 +22,7 @@ function callable(name) {
   return onCall({
     region:'europe-west1',maxInstances:10,
     enforceAppCheck: !process.env.FUNCTIONS_EMULATOR,
+    secrets: [abusePepper],
   },async request => {
     try { return await handlers[name](request); }
     catch(error) {

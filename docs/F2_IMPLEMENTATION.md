@@ -37,3 +37,33 @@ The current PR #25 now incorporates remediation for the three P1 review findings
 - Family pointer snapshots preserve Firestore `isFromCache` metadata; offline cached membership is labeled *unverified*, and an unverified cached absence cannot initiate new family creation. A revoked member may still have locally cached historic records while offline.
 
 Evidence includes a standalone Dart reproduction of quarantine/recovery, domain regression tests, and adversarial Firestore Rules tests for every allowed parent-index bound (plus invalid scalar/empty/self-referential parent IDs). These checks do **not** close G2: full two-phone offline/edit/reconnect and physical UI accessibility remains outstanding.
+
+
+## Backend abuse protection and production prerequisites (2026-10-20)
+
+- Production callables now require Firebase App Check, and the mobile family
+  production bootstrap activates Play Integrity (Android) and App Attest with
+  DeviceCheck fallback (Apple) before Auth/Firestore/Functions requests.
+  The default preview and explicit debug emulator paths do not use production
+  credentials or production attestation.
+- Cloud Functions use a Secret Manager-backed FAMILY_ABUSE_PEPPER, and fail
+  closed when production quota pepper is missing. Configure it before deploy
+  using firebase functions:secrets:set FAMILY_ABUSE_PEPPER, choose a long
+  random value, and never commit it to the repository.
+- Family creation and invite issuance are guarded by transactional, 24-hour
+  per-UID and salted-IP quota documents; retries that return an existing
+  family do not consume a new creation quota. Cloud Functions maxInstances
+  is additionally bounded but is NOT a rate limiter. These quotas are a
+  defense layer, not a replacement for Firebase Auth abuse monitoring.
+- Firestore indexes declare TTL for familyInvites.expiresAt (24h) and
+  familyRateLimits.expireAt (after 48h). TTL deletion is eventually consistent,
+  not an immediate security guarantee; redemption checks expiry atomically.
+  Confirm TTL status in the intended EU project before deployment.
+- Firestore rules deny all direct access to server-side quota documents.
+  CI uses synthetic Auth/Functions/Firestore emulators; App Check enforcement
+  is only enabled for real callable deployments, never the local emulator.
+- Launch remains blocked until a reviewed EU Firebase project exists, Play
+  Integrity and Apple App Attest are registered, Firestore and Auth App Check
+  enforcement/metrics are configured, spending alerts are enabled, and
+  legal retention, full owner/family deletion and device-cache privacy controls
+  are approved. Code alone is not evidence these cloud settings were deployed.
