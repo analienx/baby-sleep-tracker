@@ -128,6 +128,15 @@ void main() {
     await until(find.text('Wake up'), 'restored local sleep');
 
     await db.enableNetwork();
+    // A server-sourced get can return documents that still carry locally
+    // pending writes. The offline operation is durable only after Firestore
+    // confirms the complete queue was sent and acknowledged.
+    await db.waitForPendingWrites().timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => throw TestFailure(
+        'Firestore did not acknowledge the queued offline sleep operation',
+      ),
+    );
     final confirmed = await operations.get(
       const GetOptions(source: Source.server),
     );
