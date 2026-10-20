@@ -40,6 +40,11 @@ test('family rules block strangers, privilege escalation, updates and revocation
     await assertFails(carer.doc('families/secure/members/carer').update({role:'owner'}));
     await assertFails(owner.doc('families/secure/members/new').set({role:'owner',uid:'new'}));
     await assertFails(owner.doc('familyInvites/guess').get());
+    await assertFails(owner.doc('familyRateLimits/counter').get());
+    await assertFails(owner.doc('familyRateLimits/counter').set({count:0}));
+    await assertSucceeds(carer.doc('families/secure/babies/baby/operations/pending-parent')
+      .set({...op,parentIds:['pending-offline-parent']}));
+
     await assertFails(carer.doc(path).update({deleted:true}));
     await assertFails(carer.doc(path).delete());
     await assertFails(carer.doc('families/secure/babies/baby/operations/impersonate')

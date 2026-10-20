@@ -162,6 +162,69 @@ void main() {
     },
   );
 
+  test('orphan appended to existing valid session cannot hide history', () {
+    final base = op('original');
+    final settled = op(
+      'settled',
+      parents: ['original'],
+      end: morning.add(const Duration(minutes: 35)),
+    );
+    final invalid = op('orphan', parents: ['missing']);
+    final descendant = op('depends-on-orphan', parents: ['orphan']);
+    for (final order in [
+      [base, settled, invalid, descendant],
+      [descendant, invalid, settled, base],
+      [invalid, base, descendant, settled],
+    ]) {
+      final result = SleepLedger.project(order);
+      expect(
+        result.sessions.single.endedAtUtc,
+        morning.add(const Duration(minutes: 35)),
+      );
+      expect(result.quarantinedSessionIds, ['sleep-1']);
+      expect(result.hasConflicts, isFalse);
+    }
+    // The offline ancestor eventually arrives: the branch now becomes a
+    // visible conflict rather than getting ignored or silently winning.
+    final recovered = SleepLedger.project([
+      base,
+      settled,
+      invalid,
+      descendant,
+      op('missing', parents: ['original']),
+    ]);
+    expect(recovered.hasConflicts, isTrue);
+    expect(recovered.conflicts.single.heads.map((h) => h.id), [
+      'depends-on-orphan',
+      'settled',
+    ]);
+    expect(recovered.sessions.single.id, 'sleep-1');
+    expect(recovered.quarantinedSessionIds, isEmpty);
+  });
+
+  test('cycles and cross-session references do not poison existing record', () {
+    final base = op('original');
+    final foreign = SleepOperation(
+      id: 'foreign',
+      actorId: 'parent-b',
+      recordedAtUtc: morning,
+      session: SleepSession(
+        id: 'another',
+        startedAtUtc: morning,
+        endedAtUtc: null,
+      ),
+    );
+    final result = SleepLedger.project([
+      op('loop-a', parents: ['loop-b']),
+      op('loop-b', parents: ['loop-a']),
+      op('cross', parents: ['foreign']),
+      base,
+      foreign,
+    ]);
+    expect(result.sessions.map((s) => s.id).toSet(), {'sleep-1', 'another'});
+    expect(result.quarantinedSessionIds, ['sleep-1']);
+  });
+
   test('rejects illegal tombstone and non-UTC times', () {
     expect(() => op('a', deleted: true), throwsArgumentError);
     expect(

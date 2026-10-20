@@ -12,9 +12,15 @@ const errorCodes = {
   'invalid-name':'invalid-argument','invalid-code':'invalid-argument',
   'invalid-member':'invalid-argument','last-owner':'failed-precondition',
   'family-unavailable':'failed-precondition','membership-inconsistent':'failed-precondition',
+  'rate-limit-exceeded':'resource-exhausted','abuse-configuration-missing':'failed-precondition',
 };
 function callable(name) {
-  return onCall({region:'europe-west1',maxInstances:10},async request => {
+  // Production callables require attestations. The Firebase emulator accepts
+  // synthetic SDK identities without registering debug App Check tokens.
+  return onCall({
+    region:'europe-west1',maxInstances:10,
+    enforceAppCheck: !process.env.FUNCTIONS_EMULATOR,
+  },async request => {
     try { return await handlers[name](request); }
     catch(error) {
       const code=errorCodes[error.message];

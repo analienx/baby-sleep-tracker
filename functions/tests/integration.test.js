@@ -37,6 +37,13 @@ test('create, invite, redeem, revoke via real Auth + Functions emulators', {
     await assert.rejects(httpsCallable(f2,'redeemInvite')({code:issued.code}));
     await assert.rejects(httpsCallable(f2,'issueInvite')({}),
       'caregivers cannot issue invitations');
+    // Owner can issue five codes total each UTC 24h bucket.
+    for (let n=0;n<4;n++) {
+      const next=(await httpsCallable(f1,'issueInvite')({})).data;
+      assert.equal(next.code.length,43);
+    }
+    await assert.rejects(httpsCallable(f1,'issueInvite')({}));
+
 
     // Exercise two genuinely distinct Firebase identities against the
     // household journal, not just an in-memory mock or same-UID repository.
@@ -55,6 +62,13 @@ test('create, invite, redeem, revoke via real Auth + Functions emulators', {
     const second={...first,actorId:joinerAuth.currentUser.uid,
       parentIds:['start'],endedAtUtc:after};
     await setDoc(doc(db2,operations+'stop'),second);
+    assert.equal((await getDoc(doc(db1,operations+'stop'))).exists(),true);
+    // Server permits pending offline ancestors. The client isolates a
+    // bad branch while preserving prior committed history.
+    await setDoc(doc(db2,operations+'orphan-branch'),{
+      ...second,parentIds:['missing-offline-ancestor'],
+    });
+    assert.equal((await getDoc(doc(db1,operations+'start'))).exists(),true);
     assert.equal((await getDoc(doc(db1,operations+'stop'))).exists(),true);
     await assert.rejects(setDoc(doc(db2,operations+'forged'),
       {...first,actorId:ownerAuth.currentUser.uid}));

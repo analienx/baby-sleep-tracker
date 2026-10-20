@@ -24,6 +24,35 @@ function uidOf(request) {
 function assertMember(snapshot, uid) {
   if (!snapshot.exists || snapshot.data().uid !== uid) throw new Error('permission-denied');
 }
+// Quotas are updated in the *same transaction* as the restricted action.
+// Do not persist IP addresses or expose request headers to Firestore clients.
+const quotaWindowMs=24*60*60*1000;
+function limitIdentity(request, uid, action) {
+  const pepper=process.env.FAMILY_ABUSE_PEPPER ||
+    (process.env.FUNCTIONS_EMULATOR ? 'emulator-not-for-production' : null);
+  if (!pepper) throw new Error('abuse-configuration-missing');
+  const ip=request.rawRequest?.ip || request.rawRequest?.socket?.remoteAddress || 'unknown';
+  return {
+    uid:crypto.createHash('sha256').update(pepper+':'+action+':uid:'+uid).digest('hex'),
+    ip:crypto.createHash('sha256').update(pepper+':'+action+':ip:'+ip).digest('hex'),
+  };
+}
+async function guardRate(tx, db, request, uid, action, uidMax, ipMax) {
+  const keys=limitIdentity(request,uid,action);
+  const start=Math.floor(Date.now()/quotaWindowMs)*quotaWindowMs;
+  const refs=[
+    db.collection('familyRateLimits').doc('u-'+keys.uid+'-'+start),
+    db.collection('familyRateLimits').doc('i-'+keys.ip+'-'+start),
+  ];
+  const [a,b]=await Promise.all(refs.map(ref=>tx.get(ref)));
+  const counts=[a,b].map(s=>s.exists ? s.data().count : 0);
+  if (counts[0]>=uidMax || counts[1]>=ipMax)
+    throw new Error('rate-limit-exceeded');
+  for(let i=0;i<refs.length;i++) {
+    tx.set(refs[i],{count:counts[i]+1,
+      expireAt:Timestamp.fromMillis(start+2*quotaWindowMs)});
+  }
+}
 function familyService(db, admin) {
   const stamp = () => FieldValue.serverTimestamp();
   const timestamp = ms => Timestamp.fromMillis(ms);
@@ -42,6 +71,7 @@ function familyService(db, admin) {
       if (existing.exists) {
         return {familyId: existing.data().familyId, babyId: existing.data().babyId};
       }
+      await guardRate(tx,db,request,uid,'createFamily',2,10);
       tx.create(familyRef, {ownerId:uid, createdAt:stamp(), schemaVersion:1});
       tx.create(babyRef, {name, createdAt:stamp()});
       tx.create(member(familyRef.id,uid), {uid,role:'owner',joinedAt:stamp()});
@@ -61,6 +91,7 @@ function familyService(db, admin) {
       const role = await tx.get(member(familyId,uid));
       assertMember(role,uid);
       if (role.data().role !== 'owner') throw new Error('permission-denied');
+      await guardRate(tx,db,request,uid,'issueInvite',5,30);
       tx.create(invite(code), {
         familyId,createdBy:uid,expiresAt:timestamp(expiresAtMs),
         createdAt:stamp(),usedAt:null,usedBy:null,

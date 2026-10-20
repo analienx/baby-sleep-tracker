@@ -99,21 +99,39 @@ final class SleepLedger {
     final conflicts = <SleepConflict>[];
     final quarantined = <String>[];
     for (final entry in groups.entries) {
-      try {
-        final projected = _projectFamily(entry.key, entry.value);
-        sessions.addAll(projected.sessions);
-        conflicts.addAll(projected.conflicts);
-      } catch (error) {
-        // A missing ancestor can be temporary while Firestore's local cache
-        // fills; a cyclic or fabricated parent can be permanently invalid.
-        // Neither should hide otherwise valid sessions from caregivers.
-        if (error is! StateError &&
-            error is! ArgumentError &&
-            error is! FormatException) {
-          rethrow;
+      // Admit only the ancestry-closed portion of each immutable DAG. A
+      // malicious or temporarily orphaned branch MUST NOT make an earlier
+      // valid head disappear. Delayed offline parents can be admitted on the
+      // next snapshot without deleting audit records or depending on clocks.
+      final accepted = <String, SleepOperation>{};
+      final waitingFor = <String, int>{};
+      final children = <String, List<String>>{};
+      final ready = <String>[];
+      for (final op in entry.value.values) {
+        waitingFor[op.id] = op.parentIds.length;
+        if (op.parentIds.isEmpty) ready.add(op.id);
+        for (final parent in op.parentIds) {
+          children.putIfAbsent(parent, () => []).add(op.id);
         }
-        quarantined.add(entry.key);
       }
+      // Kahn traversal: O(operations + edges), independent of arrival order.
+      var index = 0;
+      while (index < ready.length) {
+        final id = ready[index++];
+        accepted[id] = entry.value[id]!;
+        for (final child in children[id] ?? const <String>[]) {
+          final remaining = waitingFor[child]! - 1;
+          waitingFor[child] = remaining;
+          if (remaining == 0) ready.add(child);
+        }
+      }
+      // Leftovers have missing/cross-session ancestors, cyclic ancestry, or
+      // depend on one of those branches. Keep them in the journal for review.
+      if (accepted.length != entry.value.length) quarantined.add(entry.key);
+      if (accepted.isEmpty) continue;
+      final projected = _projectFamily(entry.key, accepted);
+      sessions.addAll(projected.sessions);
+      conflicts.addAll(projected.conflicts);
     }
     sessions.sort((a, b) {
       final byStart = b.startedAtUtc.compareTo(a.startedAtUtc);

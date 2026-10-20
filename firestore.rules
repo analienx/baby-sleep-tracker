@@ -86,6 +86,10 @@ service cloud.firestore {
         }
       }
     }
+    // Quota counters are server-managed, with hashed identities and TTL.
+    match /familyRateLimits/{id} {
+      allow read, write: if false;
+    }
     // Invitation secrets never readable or editable by mobile clients.
     match /familyInvites/{hash} {
       allow read, write: if false;
