@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/family_client.dart';
+import 'account_deletion_action.dart';
+import 'account_verification_action.dart';
 
 final class FamilyScreen extends StatefulWidget {
   const FamilyScreen({super.key, required this.client, required this.family});
@@ -122,6 +124,7 @@ final class _FamilyScreenState extends State<FamilyScreen> {
                 ? 'Temporary account — link an email before inviting others or switching phones.'
                 : 'Recoverable account: ${current?.email ?? "linked"}',
           ),
+          AccountVerificationAction(client: widget.client),
           if (current?.isAnonymous == true) ...[
             TextField(
               controller: _email,
@@ -147,7 +150,7 @@ final class _FamilyScreenState extends State<FamilyScreen> {
           const Divider(height: 32),
           FilledButton.icon(
             icon: const Icon(Icons.person_add_alt),
-            onPressed: _busy || current?.isAnonymous == true
+            onPressed: _busy || current?.emailVerified != true
                 ? null
                 : () => _run(() async {
                     final issued = await widget.client.createInvite();
@@ -256,6 +259,25 @@ final class _FamilyScreenState extends State<FamilyScreen> {
                     ),
                   ],
                 ],
+              );
+            },
+          ),
+          const Divider(height: 32),
+          // Never assume role from cached state for a destructive server
+          // action: the callable independently verifies actual ownership.
+          StreamBuilder(
+            stream: widget.client.watchMembers(widget.family.familyId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.metadata.isFromCache) {
+                return const Text('Reconnect to manage your account.');
+              }
+              final owner = snapshot.data!.docs.any(
+                (doc) =>
+                    doc.id == current?.uid && doc.data()['role'] == 'owner',
+              );
+              return AccountDeletionAction(
+                client: widget.client,
+                isOwner: owner,
               );
             },
           ),

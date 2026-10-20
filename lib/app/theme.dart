@@ -24,6 +24,9 @@ abstract final class SleepTheme {
     );
     return ThemeData(
       useMaterial3: true,
+      // Avoid GPU-fragment splash shader dependencies on low-end phones and
+      // in headless widget tests; the standard ripple remains responsive.
+      splashFactory: InkRipple.splashFactory,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: dark ? SleepPalette.night : SleepPalette.cream,

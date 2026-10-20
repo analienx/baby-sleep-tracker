@@ -2,6 +2,7 @@
 const crypto = require('node:crypto');
 const {FieldValue, Timestamp} = require('firebase-admin/firestore');
 const ttlMs = 24 * 60 * 60 * 1000;
+const recentLoginSeconds = 5 * 60;
 const codePattern = /^[A-Za-z0-9_-]{43}$/;
 function nonemptyName(input) {
   if (typeof input !== 'string') throw new Error('invalid-name');
@@ -14,15 +15,56 @@ function tokenHash(code) {
   return crypto.createHash('sha256').update(code, 'utf8').digest('hex');
 }
 function durableAuth(auth) {
-  return Boolean(auth && auth.uid && auth.token?.firebase?.sign_in_provider !== 'anonymous');
+  return Boolean(auth && auth.uid &&
+    auth.token?.firebase?.sign_in_provider !== 'anonymous' &&
+    auth.token?.email_verified === true);
 }
 function uidOf(request) {
   const uid = request.auth?.uid;
   if (!uid || typeof uid !== 'string') throw new Error('unauthenticated');
   return uid;
 }
+function recentlyAuthenticated(request, nowMs = Date.now()) {
+  const provider = request.auth?.token?.firebase?.sign_in_provider;
+  // Anonymous accounts have no reusable credential with which to reauthenticate.
+  // Their bearer token already controls the anonymous household.
+  if (provider === 'anonymous') return true;
+  const seconds = request.auth?.token?.auth_time;
+  return typeof seconds === 'number' &&
+    seconds <= Math.floor(nowMs / 1000) + 60 &&
+    Math.floor(nowMs / 1000) - seconds <= recentLoginSeconds;
+}
 function assertMember(snapshot, uid) {
   if (!snapshot.exists || snapshot.data().uid !== uid) throw new Error('permission-denied');
+}
+// Quotas are updated in the *same transaction* as the restricted action.
+// Do not persist IP addresses or expose request headers to Firestore clients.
+const quotaWindowMs=24*60*60*1000;
+function limitIdentity(request, uid, action) {
+  const pepper=process.env.FAMILY_ABUSE_PEPPER ||
+    (process.env.FUNCTIONS_EMULATOR ? 'emulator-not-for-production' : null);
+  if (!pepper) throw new Error('abuse-configuration-missing');
+  const ip=request.rawRequest?.ip || request.rawRequest?.socket?.remoteAddress || 'unknown';
+  return {
+    uid:crypto.createHash('sha256').update(pepper+':'+action+':uid:'+uid).digest('hex'),
+    ip:crypto.createHash('sha256').update(pepper+':'+action+':ip:'+ip).digest('hex'),
+  };
+}
+async function guardRate(tx, db, request, uid, action, uidMax, ipMax) {
+  const keys=limitIdentity(request,uid,action);
+  const start=Math.floor(Date.now()/quotaWindowMs)*quotaWindowMs;
+  const refs=[
+    db.collection('familyRateLimits').doc('u-'+keys.uid+'-'+start),
+    db.collection('familyRateLimits').doc('i-'+keys.ip+'-'+start),
+  ];
+  const [a,b]=await Promise.all(refs.map(ref=>tx.get(ref)));
+  const counts=[a,b].map(s=>s.exists ? s.data().count : 0);
+  if (counts[0]>=uidMax || counts[1]>=ipMax)
+    throw new Error('rate-limit-exceeded');
+  for(let i=0;i<refs.length;i++) {
+    tx.set(refs[i],{count:counts[i]+1,
+      expireAt:Timestamp.fromMillis(start+2*quotaWindowMs)});
+  }
 }
 function familyService(db, admin) {
   const stamp = () => FieldValue.serverTimestamp();
@@ -31,6 +73,9 @@ function familyService(db, admin) {
   const family = id => db.collection('families').doc(id);
   const member = (id, uid) => family(id).collection('members').doc(uid);
   const invite = code => db.collection('familyInvites').doc(tokenHash(code));
+  // Short-lived deletion tombstones prevent a still-valid ID token from
+  // recreating an identity while the Admin SDK removes its Auth credentials.
+  const deletion = uid => db.collection('accountDeletions').doc(uid);
 
   async function createFamily(request) {
     const uid = uidOf(request);
@@ -38,10 +83,14 @@ function familyService(db, admin) {
     const familyRef = db.collection('families').doc();
     const babyRef = familyRef.collection('babies').doc();
     return db.runTransaction(async tx => {
-      const existing = await tx.get(user(uid));
+      const [existing, deleting] = await Promise.all([
+        tx.get(user(uid)), tx.get(deletion(uid)),
+      ]);
+      if (deleting.exists) throw new Error('account-deleting');
       if (existing.exists) {
         return {familyId: existing.data().familyId, babyId: existing.data().babyId};
       }
+      await guardRate(tx,db,request,uid,'createFamily',2,10);
       tx.create(familyRef, {ownerId:uid, createdAt:stamp(), schemaVersion:1});
       tx.create(babyRef, {name, createdAt:stamp()});
       tx.create(member(familyRef.id,uid), {uid,role:'owner',joinedAt:stamp()});
@@ -51,7 +100,8 @@ function familyService(db, admin) {
   }
   async function issueInvite(request) {
     const uid = uidOf(request);
-    if (!durableAuth(request.auth)) throw new Error('durable-account-required');
+    if (!durableAuth(request.auth)) throw new Error('verified-account-required');
+    if ((await deletion(uid).get()).exists) throw new Error('account-deleting');
     const profile = await user(uid).get();
     if (!profile.exists) throw new Error('failed-precondition');
     const familyId = profile.data().familyId;
@@ -64,6 +114,7 @@ function familyService(db, admin) {
       assertMember(role,uid);
       if (role.data().role !== 'owner') throw new Error('permission-denied');
       if (!household.exists || household.data().deleting === true) throw new Error('family-unavailable');
+      await guardRate(tx,db,request,uid,'issueInvite',5,30);
       tx.create(invite(code), {
         familyId,createdBy:uid,expiresAt:timestamp(expiresAtMs),
         createdAt:stamp(),usedAt:null,usedBy:null,
@@ -73,10 +124,13 @@ function familyService(db, admin) {
   }
   async function redeemInvite(request) {
     const uid = uidOf(request);
-    if (!durableAuth(request.auth)) throw new Error('durable-account-required');
+    if (!durableAuth(request.auth)) throw new Error('verified-account-required');
     const inviteRef = invite(request.data?.code);
     return db.runTransaction(async tx => {
-      const [profile,invitation] = await Promise.all([tx.get(user(uid)),tx.get(inviteRef)]);
+      const [profile,invitation,deleting] = await Promise.all([
+        tx.get(user(uid)),tx.get(inviteRef),tx.get(deletion(uid)),
+      ]);
+      if (deleting.exists) throw new Error('account-deleting');
       if (profile.exists) throw new Error('already-in-family');
       if (!invitation.exists) throw new Error('invalid-invitation');
       const data = invitation.data();
@@ -97,6 +151,7 @@ function familyService(db, admin) {
     const uid = uidOf(request);
     const targetUid = request.data?.targetUid;
     if (typeof targetUid!=='string'||!targetUid||targetUid===uid) throw new Error('invalid-member');
+    if ((await deletion(uid).get()).exists) throw new Error('account-deleting');
     return db.runTransaction(async tx => {
       const profile = await tx.get(user(uid));
       if (!profile.exists) throw new Error('permission-denied');
@@ -185,6 +240,78 @@ function familyService(db, admin) {
     });
     return {deleted:true};
   }
-  return {createFamily,issueInvite,redeemInvite,revokeMember,deleteFamily};
+
+  /// An Auth account is separate from the household. Remove its private
+  /// membership/profile first; shared caregiver edits remain as a pseudonymous
+  /// immutable audit journal. The owner must delete the whole household.
+  /// Retained, short-lived markers make failed Admin Auth deletions retryable.
+  async function deleteAccount(request) {
+    const uid = uidOf(request);
+    if (!recentlyAuthenticated(request)) throw new Error('recent-login-required');
+    const marker = deletion(uid);
+    const profileRef = user(uid);
+    const profile = await profileRef.get();
+    const markerSnapshot = await marker.get();
+    if (!markerSnapshot.exists) {
+      if (profile.exists && typeof profile.data().familyId === 'string') {
+        const household = await family(profile.data().familyId).get();
+        if (household.exists && household.data().ownerId === uid) {
+          // Owner deletion must be explicit: this is an irreversible removal
+          // of all caregivers' journals, not a silent transfer of ownership.
+          if (request.data?.deleteOwnedHousehold !== true) {
+            throw new Error('owner-must-delete-household');
+          }
+        }
+      }
+      await db.runTransaction(async tx => {
+        const [current, markerState] = await Promise.all([
+          tx.get(profileRef), tx.get(marker),
+        ]);
+        if (markerState.exists) return;
+        if (current.exists && typeof current.data().familyId === 'string') {
+          const household = await tx.get(family(current.data().familyId));
+          if (household.exists && household.data().ownerId === uid &&
+              request.data?.deleteOwnedHousehold !== true) {
+            throw new Error('owner-must-delete-household');
+          }
+        }
+        tx.create(marker, {
+          requestedAt:stamp(), expiresAt:timestamp(Date.now()+ttlMs),
+        });
+      });
+    }
+    // If an earlier attempt was interrupted, the marker permits a retry.
+    const latestProfile = await profileRef.get();
+    if (latestProfile.exists && typeof latestProfile.data().familyId === 'string') {
+      const familyId = latestProfile.data().familyId;
+      const household = await family(familyId).get();
+      if (household.exists && household.data().ownerId === uid) {
+        await deleteFamily(request);
+      } else {
+        await db.runTransaction(async tx => {
+          const current = await tx.get(profileRef);
+          if (!current.exists) return;
+          const id = current.data().familyId;
+          const home = await tx.get(family(id));
+          if (home.exists && home.data().ownerId === uid) {
+            throw new Error('owner-must-delete-household');
+          }
+          tx.delete(profileRef);
+          tx.delete(member(id,uid));
+        });
+      }
+    }
+    try {
+      await admin.auth().deleteUser(uid);
+    } catch (error) {
+      // A previous attempt can have deleted Auth but timed out before reply.
+      if (error.code !== 'auth/user-not-found') throw error;
+    }
+    return {deleted:true};
+  }
+  return {createFamily,issueInvite,redeemInvite,revokeMember,deleteFamily,deleteAccount};
 }
-module.exports = {familyService,tokenHash,durableAuth,nonemptyName,ttlMs};
+module.exports = {
+  familyService,tokenHash,durableAuth,nonemptyName,recentlyAuthenticated,
+  ttlMs,
+};

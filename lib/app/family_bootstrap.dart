@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+
+import 'firebase_emulator_host.dart';
 
 import '../features/family/data/family_client.dart';
 
@@ -35,6 +38,14 @@ Future<FamilyClient> connectFamily() async {
           )
         : _productionOptions(),
   );
+  if (useFamilyProduction) {
+    // Must run before Auth/Firestore/Functions. Neither debug-provider tokens
+    // nor a bypass flag can be used with a production build.
+    await FirebaseAppCheck.instanceFor(app: app).activate(
+      providerAndroid: const AndroidPlayIntegrityProvider(),
+      providerApple: const AppleAppAttestWithDeviceCheckFallbackProvider(),
+    );
+  }
   final auth = FirebaseAuth.instanceFor(app: app);
   final firestore = FirebaseFirestore.instanceFor(app: app);
   firestore.settings = const Settings(persistenceEnabled: true);
@@ -43,7 +54,11 @@ Future<FamilyClient> connectFamily() async {
     region: 'europe-west1',
   );
   if (useFamilyEmulator) {
-    final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+    final host = resolveFirebaseEmulatorHost(
+      isAndroid: Platform.isAndroid,
+      configuredHost: configuredFirebaseEmulatorHost,
+      isRelease: kReleaseMode,
+    );
     await auth.useAuthEmulator(host, 9099);
     firestore.useFirestoreEmulator(host, 8080);
     functions.useFunctionsEmulator(host, 5001);

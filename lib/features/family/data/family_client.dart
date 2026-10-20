@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 final class FamilyContext {
   const FamilyContext({required this.familyId, required this.babyId});
@@ -44,6 +45,11 @@ final class FamilyClient {
   final FirebaseAuth auth;
   final FirebaseFirestore firestore;
   final FirebaseFunctions functions;
+
+  /// After confirmed deletion this Firestore instance is terminated on purpose.
+  /// Restarting starts a fresh cache and avoids a different login reading
+  /// locally retained records from the deleted family.
+  final ValueNotifier<String?> accountDeletionNotice = ValueNotifier(null);
 
   Stream<FamilySnapshot> watchFamily(String uid) => firestore
       .collection('users')
@@ -90,6 +96,19 @@ final class FamilyClient {
   Future<void> resetPassword(String email) =>
       auth.sendPasswordResetEmail(email: email.trim());
 
+  Future<void> sendVerificationEmail() async {
+    final user = auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      throw StateError('Secure the account with email first.');
+    }
+    await user.sendEmailVerification();
+  }
+
+  Future<void> refreshEmailVerification() async {
+    await auth.currentUser?.reload();
+    await auth.currentUser?.getIdToken(true);
+  }
+
   Future<void> revokeCaregiver(String uid) async {
     await functions.httpsCallable('revokeMember').call<Map<String, dynamic>>({
       'targetUid': uid,
@@ -108,6 +127,58 @@ final class FamilyClient {
     }
   }
 
+  /// Removes the sign-in identity and its private membership/profile, not
+  /// merely the household Firestore documents. Password users must prove a
+  /// fresh login before this irreversible server-side action. A caregiver's
+  /// existing sleep edits remain in the shared journal without email/profile.
+  Future<void> deleteAccount({
+    String? password,
+    bool deleteOwnedHousehold = false,
+  }) async {
+    final current = auth.currentUser;
+    if (current == null) {
+      throw StateError('Sign in before deleting an account.');
+    }
+    if (!current.isAnonymous) {
+      final email = current.email;
+      if (email == null ||
+          email.isEmpty ||
+          password == null ||
+          password.isEmpty) {
+        throw StateError('Enter your account password to confirm deletion.');
+      }
+      await current.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      );
+      // Ensure the callable receives the new auth_time in its ID token.
+      await current.getIdToken(true);
+    }
+    final result = await functions
+        .httpsCallable('deleteAccount')
+        .call<Map<String, dynamic>>({
+          'deleteOwnedHousehold': deleteOwnedHousehold,
+        });
+    if (result.data['deleted'] != true) {
+      throw StateError('Account deletion was not confirmed by the server.');
+    }
+    try {
+      await auth.signOut();
+    } finally {
+      try {
+        await firestore.terminate();
+        await firestore.clearPersistence();
+        accountDeletionNotice.value =
+            'Account deleted and this device’s sleep cache cleared. '
+            'Close and reopen Little Rest to start again.';
+      } catch (_) {
+        accountDeletionNotice.value =
+            'Cloud account deleted, but this device’s offline cache could '
+            'not be confirmed cleared. Remove the app’s local data or '
+            'uninstall it before allowing someone else to use this phone.';
+      }
+    }
+  }
+
   Stream<QuerySnapshot<Map<String, dynamic>>> watchMembers(String familyId) =>
       firestore
           .collection('families')
@@ -122,9 +193,13 @@ final class FamilyClient {
     if (user == null || !user.isAnonymous) {
       throw StateError('Only anonymous accounts can be upgraded here.');
     }
+    if (password.length < 12) {
+      throw StateError('Use at least 12 characters for your account password.');
+    }
     await user.linkWithCredential(
       EmailAuthProvider.credential(email: email.trim(), password: password),
     );
+    await auth.currentUser?.sendEmailVerification();
   }
 
   /// Existing user login is only allowed from the unjoined onboarding state.

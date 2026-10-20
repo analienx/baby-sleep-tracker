@@ -26,6 +26,8 @@ jobs:
         run: npm ci --prefix functions --no-audit --no-fund
       - name: Static and pure unit tests
         run: npm run check --prefix functions && npm test --prefix functions
+      - name: Validate public account-deletion page syntax
+        run: node --check hosting/deletion.js && node --check hosting/config.js && node --check scripts/check-hosting-ready.mjs
       - name: Verify Java for Firestore emulator
         run: java -version
       - name: Rule adversarial and callable integration tests

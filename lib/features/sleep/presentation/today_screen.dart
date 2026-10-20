@@ -61,9 +61,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen>
     final sessions = ref.watch(sleepSessionsProvider);
     final conflicts = ref.watch(sleepConflictsProvider);
     final compact =
-        MediaQuery.textScalerOf(context).scale(16) > 24 ||
-        (MediaQuery.sizeOf(context).height <= 620 &&
-            MediaQuery.sizeOf(context).width <= 430);
+        MediaQuery.textScalerOf(context).scale(16) > 20 ||
+        MediaQuery.sizeOf(context).height < 780;
     final content = PageContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,23 +95,32 @@ class _TodayScreenState extends ConsumerState<TodayScreen>
       ),
     );
     if (!compact) return content;
-    return Stack(
+    // Keep the action in its own measured layout slot so large text does not
+    // overlap the scroll area, while the entire history remains scrollable.
+    return Column(
       children: [
-        Positioned.fill(bottom: 90, child: content),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: Material(
-            color: Theme.of(context).colorScheme.surface,
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 13),
-              child: sessions.when(
-                data: (value) =>
-                    _SleepActionRow(sessions: value, compact: true),
-                loading: () => const SizedBox(height: 58),
-                error: (_, _) => const SizedBox(height: 58),
+        Expanded(child: content),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+          ),
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+                child: sessions.when(
+                  data: (value) =>
+                      _SleepActionRow(sessions: value, compact: true),
+                  loading: () => const SizedBox(height: 58),
+                  error: (_, _) => const SizedBox(height: 58),
+                ),
               ),
             ),
           ),
@@ -418,17 +426,17 @@ class _SleepActionRow extends ConsumerWidget {
             ],
             child: SizedBox(
               height: 52,
-              width: compact ? 48 : null,
+              width: compact ? 68 : null,
               child: Center(
-                child: compact
-                    ? Icon(
-                        Icons.history_rounded,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      )
-                    : const Text(
-                        'Earlier',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                child: Text(
+                  'Earlier',
+                  style: TextStyle(
+                    fontSize: compact ? 13 : null,
+                    color: compact
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Colors.white,
+                  ),
+                ),
               ),
             ),
           ),

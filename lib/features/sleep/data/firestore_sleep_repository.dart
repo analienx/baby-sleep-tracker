@@ -344,7 +344,14 @@ final class FirestoreSleepRepository
     List<String>? resolutionParents,
   }) async {
     await readSessions();
-    final existing = _lastOperations.where((op) => op.session.id == session.id);
+    // Quarantined append-only revisions remain available as audit evidence,
+    // but are not valid competing heads. Otherwise a single malformed offline
+    // node would block normal Start/Stop/Edit even after the safe projection
+    // restores the earlier committed session.
+    final quarantined = _projection.quarantinedOperationIds.toSet();
+    final existing = _lastOperations.where(
+      (op) => op.session.id == session.id && !quarantined.contains(op.id),
+    );
     final referenced = existing.expand((op) => op.parentIds).toSet();
     final heads = [
       for (final op in existing)

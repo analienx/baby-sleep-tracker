@@ -15,6 +15,7 @@ service cloud.firestore {
       // devices still holding stale membership documents in their cache.
       return signedIn() && exists(familyPath(familyId))
         && get(familyPath(familyId)).data.get('deleting', false) != true
+        && !exists(/databases/$(database)/documents/accountDeletions/$(request.auth.uid))
         && exists(memberPath(familyId));
     }
     // Rules lists have no generic type parameters: check every allowed index.
@@ -69,7 +70,8 @@ service cloud.firestore {
 
     // All account/family/membership changes are server-only and transactional.
     match /users/{uid} {
-      allow get: if signedIn() && request.auth.uid == uid;
+      allow get: if signedIn() && request.auth.uid == uid
+        && !exists(/databases/$(database)/documents/accountDeletions/$(request.auth.uid));
       allow list, create, update, delete: if false;
     }
     match /families/{familyId} {
@@ -93,8 +95,17 @@ service cloud.firestore {
         }
       }
     }
+    // Quota counters are server-managed, with hashed identities and TTL.
+    match /familyRateLimits/{id} {
+      allow read, write: if false;
+    }
     // Invitation secrets never readable or editable by mobile clients.
     match /familyInvites/{hash} {
+      allow read, write: if false;
+    }
+    // Includes a short-lived deletion tombstone. Only Admin SDK code may
+    // create/read it, so a stale ID token cannot cancel account deletion.
+    match /accountDeletions/{uid} {
       allow read, write: if false;
     }
     match /{other=**} {

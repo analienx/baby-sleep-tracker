@@ -36,7 +36,15 @@ file may remain in temporary app storage for up to a day; Settings can clear
 those staged copies immediately after sharing. External share recipients can
 retain separate copies. Family invitations, revocation, and owner-only
 household deletion run only against the F2 backend, never ordinary preview.
-Household deletion does not delete separate Firebase sign-in credentials.
+Household deletion alone does not delete separate Firebase sign-in
+credentials. The new **Delete my account** action removes Firebase Auth as
+well, with password reauthentication and separate owner/caregiver semantics.
+Shared caregiver edits retain pseudonymous attribution; previously cached
+copies on other phones cannot be remotely erased. An external self-service
+deletion page is prepared for Firebase Hosting, but cannot be deployed until
+its production App Check web registration is configured. Deployment of the
+rate-limited family callables also requires the Secret Manager setting
+`FAMILY_ABUSE_PEPPER` (see the Firebase release-readiness runbook).
 
 ### Opt-in offline Firebase development mode (synthetic data only)
 
@@ -117,6 +125,7 @@ No feeding, diaper tracking, medical sleep scoring, AI predictions, or passive m
 Design decisions, data contracts, risks, and review requirements are documented in:
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 - [Architecture decision](docs/ADR-0001-flutter-firebase.md)
+- [Firebase production-readiness and account-deletion runbook](docs/FIREBASE_RELEASE_READINESS.md)
 - [GitHub backlog](../../issues)
 
 ## Development principles

@@ -17,77 +17,97 @@ final class FamilyGate extends StatelessWidget {
   final FamilyClient client;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<User?>(
-    stream: client.auth.userChanges(),
-    initialData: client.auth.currentUser,
-    builder: (context, authSnapshot) {
-      final user = authSnapshot.data;
-      if (user == null) {
+  Widget build(BuildContext context) => ValueListenableBuilder<String?>(
+    valueListenable: client.accountDeletionNotice,
+    builder: (context, notice, child) {
+      if (notice != null) {
         return MaterialApp(
           home: Scaffold(
             body: Center(
-              child: FilledButton(
-                onPressed: () => client.auth.signInAnonymously(),
-                child: const Text('Start a new private session'),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(notice, textAlign: TextAlign.center),
               ),
             ),
           ),
         );
       }
-      return StreamBuilder<FamilySnapshot>(
-        key: ValueKey(user.uid),
-        stream: client.watchFamily(user.uid),
-        builder: (context, familySnapshot) {
-          if (familySnapshot.hasError) {
-            return MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Family access unavailable: ${familySnapshot.error}',
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-          if (familySnapshot.connectionState == ConnectionState.waiting) {
-            return const MaterialApp(
-              home: Scaffold(body: Center(child: CircularProgressIndicator())),
-            );
-          }
-          final presence = familySnapshot.data;
-          final family = presence?.family;
-          if (presence?.deletionInProgress == true) {
-            return _HouseholdDeletionPending(client: client);
-          }
-          if (family == null && presence?.isFromCache == true) {
-            return const MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Checking family access. Reconnect to the internet '
-                      'before creating or joining a family.',
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-          if (family == null) return FamilyOnboarding(client: client);
-          return _FamilyWorkspace(
-            key: ValueKey('${user.uid}/${family.familyId}/${family.babyId}'),
-            client: client,
-            family: family,
-            isFromCache: presence!.isFromCache,
-            uid: user.uid,
-          );
-        },
-      );
+      return child!;
     },
+    child: StreamBuilder<User?>(
+      stream: client.auth.userChanges(),
+      initialData: client.auth.currentUser,
+      builder: (context, authSnapshot) {
+        final user = authSnapshot.data;
+        if (user == null) {
+          return MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => client.auth.signInAnonymously(),
+                  child: const Text('Start a new private session'),
+                ),
+              ),
+            ),
+          );
+        }
+        return StreamBuilder<FamilySnapshot>(
+          key: ValueKey(user.uid),
+          stream: client.watchFamily(user.uid),
+          builder: (context, familySnapshot) {
+            if (familySnapshot.hasError) {
+              return MaterialApp(
+                home: Scaffold(
+                  body: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Family access unavailable: ${familySnapshot.error}',
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            if (familySnapshot.connectionState == ConnectionState.waiting) {
+              return const MaterialApp(
+                home: Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                ),
+              );
+            }
+            final presence = familySnapshot.data;
+            final family = presence?.family;
+            if (presence?.deletionInProgress == true) {
+              return _HouseholdDeletionPending(client: client);
+            }
+            if (family == null && presence?.isFromCache == true) {
+              return const MaterialApp(
+                home: Scaffold(
+                  body: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Checking family access. Reconnect to the internet '
+                        'before creating or joining a family.',
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            if (family == null) return FamilyOnboarding(client: client);
+            return _FamilyWorkspace(
+              key: ValueKey('${user.uid}/${family.familyId}/${family.babyId}'),
+              client: client,
+              family: family,
+              isFromCache: presence!.isFromCache,
+              uid: user.uid,
+            );
+          },
+        );
+      },
+    ),
   );
 }
 
