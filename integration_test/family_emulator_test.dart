@@ -66,7 +66,20 @@ void main() {
         await tester.pump(const Duration(milliseconds: 250));
         if (finder.evaluate().isNotEmpty) return;
       }
-      throw TestFailure('Timed out: $purpose');
+      // Preserve the user-visible error when a Firebase callable fails. In an
+      // instrumented device run a bare timeout otherwise hides the actual
+      // reason (e.g. missing Auth state, denied Rules, unreachable Functions).
+      final visible = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((widget) => widget.data ?? widget.textSpan?.toPlainText() ?? '')
+          .where((value) => value.isNotEmpty)
+          .take(35)
+          .join(' | ');
+      final frameworkError = tester.takeException();
+      throw TestFailure(
+        'Timed out: $purpose. Visible UI: $visible. '
+        'Flutter error: ${frameworkError ?? 'none'}',
+      );
     }
 
     await application.main();

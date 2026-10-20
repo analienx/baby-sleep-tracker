@@ -13,10 +13,16 @@ adb shell am force-stop com.analienx.baby_sleep_tracker
 
 # The official Flutter integration_test harness installs its own instrumented
 # app using the same persistent Firebase compile-time define.
+test_status=0
 flutter test integration_test/family_emulator_test.dart \
   -d emulator-5554 --no-pub \
   --dart-define=USE_FAMILY_EMULATOR=true \
   --dart-define=FIREBASE_EMULATOR_HOST="${DEVICE_HOST:-10.0.2.2}" \
-  -r expanded
+  -r expanded || test_status=$?
 
-adb exec-out screencap -p > .e2e/family-e2e.png
+adb exec-out screencap -p > .e2e/family-e2e.png || true
+# Redacted-by-selection: error-only Flutter/Firebase Android logs from a
+# demo-project emulator. Retain even if the widget test fails.
+adb logcat -d -v time -s flutter:E FirebaseAuth:E FirebaseFunctions:E \
+  > .e2e/android-errors.log || true
+exit "$test_status"
