@@ -1,6 +1,7 @@
 {
   "FIREBASE_PROJECT_ID": "replace-with-verified-project-id",
-  "FIREBASE_API_KEY": "public-firebase-android-or-ios-api-key",
+  "FIREBASE_ANDROID_API_KEY": "public-android-firebase-api-key",
+  "FIREBASE_IOS_API_KEY": "public-ios-firebase-api-key",
   "FIREBASE_MESSAGING_SENDER_ID": "1234567890",
   "FIREBASE_ANDROID_APP_ID": "1:1234567890:android:replace",
   "FIREBASE_IOS_APP_ID": "1:1234567890:ios:replace",
