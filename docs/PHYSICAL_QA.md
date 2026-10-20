@@ -48,3 +48,49 @@ localhost on a physical phone. Never enable emulator flags in release builds.
 Stop Firebase emulators, remove the temporary Windows Firewall allow rule,
 discard synthetic invite codes and remove local screenshots containing test
 emails. Never accept simulator-only smoke as physical-device gate evidence.
+
+## Repeatable CI E2E (persistent Flutter/Firebase app)
+
+The normal `Flutter CI` installs a **PREVIEW** APK. That launch is useful for
+layout checks, but does not verify persistent family tracking.
+
+The separate [Persistent family E2E](/.github/workflows/family-e2e.yml)
+workflow does all of the following on a real Android OS emulator:
+1. Compiles and archives a **debug APK** using
+   `--dart-define=USE_FAMILY_EMULATOR=true`, with an explicit private
+   `FIREBASE_EMULATOR_HOST` for the downloadable artifact.
+2. Boots Android, starts **real** synthetic Auth, Firestore and Cloud Functions
+   emulators, installs the archived APK, verifies launch and takes a screenshot
+   of the family onboarding UI.
+3. Runs `integration_test/family_emulator_test.dart` through Flutter's
+   on-device test driver. It creates a family through the UI, saves an offline
+   Start action into native Firestore cache, recreates the UI/repository
+   offline, reconnects and verifies the **same** operation ID reached the
+   emulator backend exactly once. A second Firebase Auth UID joins by invite,
+   stops the same sleep in a separate Firestore client, and is then revoked.
+4. Archives the integration log and test screenshots. Failing checks fail the
+   GitHub workflow; backend emulator startup alone is **not** reported as E2E.
+
+This is genuine app + backend integration. Recreating the Flutter widget tree
+is not proof of survival across an Android OS force-stop/reboot, and the
+second test identity is **not** a separate physical phone. Both of those are
+explicitly left to the physical gate tests above.
+
+The workflow runs when the PR modifies relevant code, or can be triggered
+manually after merging the workflow to the repository's default branch. Open
+the latest run's Artifacts to retrieve
+`little-rest-family-persistent-debug-<sha>` and the evidence archive. The
+default debug APK is configured for the **Android emulator's** 10.0.2.2
+alias. For testing on a real Android handset, provide that handset's trusted
+LAN Firebase host IP using the workflow-dispatch `device_host` input; the
+workflow validates RFC1918/loopback IPv4. Otherwise build locally with:
+
+```sh
+flutter build apk --debug --dart-define=USE_FAMILY_EMULATOR=true \
+  --dart-define=FIREBASE_EMULATOR_HOST=192.168.1.10
+```
+
+The debug APK is **not** a standalone online service. A phone on the LAN must
+reach the separately running emulator host and use demo-little-rest only. No
+release APK can connect to the emulator by design. Real family use requires
+independent G2 approval and a provisioned production Firebase configuration.
