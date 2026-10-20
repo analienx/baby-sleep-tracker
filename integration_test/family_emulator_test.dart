@@ -26,8 +26,27 @@ void main() {
       while (DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 250));
         if (finder.evaluate().isNotEmpty) return;
+        if (purpose == 'family Today' &&
+            find.byType(SelectableText).evaluate().isNotEmpty) {
+          final errors = find
+              .byType(SelectableText)
+              .evaluate()
+              .map((element) => (element.widget as SelectableText).data ?? '')
+              .toList();
+          throw TestFailure('Create family failed: $errors');
+        }
       }
-      throw TestFailure('Timed out: $purpose');
+      final visibleText = find
+          .byType(Text)
+          .evaluate()
+          .map((element) => (element.widget as Text).data ?? '')
+          .where((value) => value.isNotEmpty)
+          .take(30)
+          .toList();
+      throw TestFailure(
+        'Timed out: $purpose; widgets=$visibleText; '
+        'busy=${find.byType(LinearProgressIndicator).evaluate().isNotEmpty}',
+      );
     }
 
     await application.main();

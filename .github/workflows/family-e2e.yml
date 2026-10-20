@@ -130,3 +130,19 @@ jobs:
           path: .e2e/
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Build separate physical-Android USB debug APK
+        # Only distribute this after the emulator-backed E2E test passes.
+        # ADB reverse maps the handset's 127.0.0.1 ports to the host PC.
+        run: |
+          flutter build apk --debug --no-pub \
+            --dart-define=USE_FAMILY_EMULATOR=true \
+            --dart-define=FIREBASE_EMULATOR_HOST=127.0.0.1
+
+      - name: Retain physical Android USB-debug build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: little-rest-family-android-usb-debug-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

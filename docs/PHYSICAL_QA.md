@@ -94,3 +94,32 @@ The debug APK is **not** a standalone online service. A phone on the LAN must
 reach the separately running emulator host and use demo-little-rest only. No
 release APK can connect to the emulator by design. Real family use requires
 independent G2 approval and a provisioned production Firebase configuration.
+
+## Preferred physical Android path: USB ADB reverse
+
+The safest and simplest Android field-test setup does **not** require exposing
+Firebase emulator ports on the local network. Connect a physical Android phone
+with developer options and USB debugging enabled, authorize the PC, and use:
+
+```sh
+firebase emulators:start --project demo-little-rest --config firebase.json
+adb devices -l
+adb reverse tcp:9099 tcp:9099  # Auth
+adb reverse tcp:8080 tcp:8080  # Firestore
+adb reverse tcp:5001 tcp:5001  # Functions
+
+flutter run --debug --dart-define=USE_FAMILY_EMULATOR=true \
+  --dart-define=FIREBASE_EMULATOR_HOST=127.0.0.1
+```
+
+For an installable APK instead of `flutter run`, build it with exactly those
+two `--dart-define` settings, then `adb install -r path/to/app-debug.apk`.
+This is a **different artifact** from the default 10.0.2.2 Android *emulator*
+APK; never install the emulator-targeted build on a physical handset and
+expect it to reach localhost. The host remains bound to 127.0.0.1, not
+0.0.0.0; no router, LAN firewall or exposed ports are required. ADB reverse
+works only while USB debugging or a suitable authorized ADB connection is
+available, so this is a controlled lab test—not a production backend.
+
+Physical iPhone testing still requires a Mac/Xcode-signed debug build and
+restricted LAN networking; ADB reverse does not apply to iOS.
