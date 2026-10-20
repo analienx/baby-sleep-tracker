@@ -129,20 +129,110 @@ void main() {
     );
   });
 
-  test('rejects missing parents, cycles, illegal tombstone, non-UTC times', () {
-    expect(
-      () => SleepLedger.project([
-        op('a', parents: ['unknown']),
-      ]),
-      throwsStateError,
-    );
-    expect(
-      () => SleepLedger.project([
+  test(
+    'quarantines missing parents and cycles without losing other sleeps',
+    () {
+      final unrelated = SleepOperation(
+        id: 'valid',
+        actorId: 'parent-b',
+        recordedAtUtc: morning,
+        session: SleepSession(
+          id: 'unrelated',
+          startedAtUtc: morning,
+          endedAtUtc: null,
+        ),
+      );
+      final orphan = op('a', parents: ['unknown']);
+      final quarantined = SleepLedger.project([orphan, unrelated]);
+      expect(quarantined.sessions.single.id, 'unrelated');
+      expect(quarantined.quarantinedSessionIds, ['sleep-1']);
+
+      final cyclic = SleepLedger.project([
+        unrelated,
         op('a', parents: ['b']),
         op('b', parents: ['a']),
-      ]),
-      throwsStateError,
+      ]);
+      expect(cyclic.sessions.single.id, 'unrelated');
+      expect(cyclic.quarantinedSessionIds, ['sleep-1']);
+
+      // Once the missing parent is available, the quarantine repairs itself.
+      final recovered = SleepLedger.project([unrelated, orphan, op('unknown')]);
+      expect(recovered.sessions, hasLength(2));
+      expect(recovered.quarantinedSessionIds, isEmpty);
+    },
+  );
+
+  test('orphan appended to existing valid session cannot hide history', () {
+    final base = op('original');
+    final settled = op(
+      'settled',
+      parents: ['original'],
+      end: morning.add(const Duration(minutes: 35)),
     );
+    final invalid = op('orphan', parents: ['missing']);
+    final descendant = op('depends-on-orphan', parents: ['orphan']);
+    for (final order in [
+      [base, settled, invalid, descendant],
+      [descendant, invalid, settled, base],
+      [invalid, base, descendant, settled],
+    ]) {
+      final result = SleepLedger.project(order);
+      expect(
+        result.sessions.single.endedAtUtc,
+        morning.add(const Duration(minutes: 35)),
+      );
+      expect(result.quarantinedSessionIds, ['sleep-1']);
+      expect(result.quarantinedOperationIds, ['depends-on-orphan', 'orphan']);
+      expect(result.hasConflicts, isFalse);
+      final remaining = [
+        for (final operation in order)
+          if (!result.quarantinedOperationIds.contains(operation.id)) operation,
+      ];
+      expect(remaining.map((op) => op.id).toSet(), {'original', 'settled'});
+    }
+    // The offline ancestor eventually arrives: the branch now becomes a
+    // visible conflict rather than getting ignored or silently winning.
+    final recovered = SleepLedger.project([
+      base,
+      settled,
+      invalid,
+      descendant,
+      op('missing', parents: ['original']),
+    ]);
+    expect(recovered.hasConflicts, isTrue);
+    expect(recovered.conflicts.single.heads.map((h) => h.id), [
+      'depends-on-orphan',
+      'settled',
+    ]);
+    expect(recovered.sessions.single.id, 'sleep-1');
+    expect(recovered.quarantinedSessionIds, isEmpty);
+    expect(recovered.quarantinedOperationIds, isEmpty);
+  });
+
+  test('cycles and cross-session references do not poison existing record', () {
+    final base = op('original');
+    final foreign = SleepOperation(
+      id: 'foreign',
+      actorId: 'parent-b',
+      recordedAtUtc: morning,
+      session: SleepSession(
+        id: 'another',
+        startedAtUtc: morning,
+        endedAtUtc: null,
+      ),
+    );
+    final result = SleepLedger.project([
+      op('loop-a', parents: ['loop-b']),
+      op('loop-b', parents: ['loop-a']),
+      op('cross', parents: ['foreign']),
+      base,
+      foreign,
+    ]);
+    expect(result.sessions.map((s) => s.id).toSet(), {'sleep-1', 'another'});
+    expect(result.quarantinedSessionIds, ['sleep-1']);
+  });
+
+  test('rejects illegal tombstone and non-UTC times', () {
     expect(() => op('a', deleted: true), throwsArgumentError);
     expect(
       () => SleepOperation(

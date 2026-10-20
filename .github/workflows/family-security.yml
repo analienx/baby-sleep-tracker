@@ -1,0 +1,32 @@
+name: F2 family security
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: family-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  functions-and-rules:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - name: Install backend and emulator tooling
+        run: npm ci --prefix functions --no-audit --no-fund
+      - name: Static and pure unit tests
+        run: npm run check --prefix functions && npm test --prefix functions
+      - name: Verify Java for Firestore emulator
+        run: java -version
+      - name: Rule adversarial and callable integration tests
+        run: npm exec --prefix functions -- firebase emulators:exec --project demo-little-rest --only auth,firestore,functions "npm test --prefix functions"

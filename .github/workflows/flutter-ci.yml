@@ -32,7 +32,17 @@ jobs:
           cache: true
 
       - name: Restore locked packages
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
+
+      - name: Verify dependency lockfile is reproducible
+        run: git diff --exit-code -- pubspec.lock
+
+      - name: Capture resolved lockfile for reproducibility
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: resolved-pubspec-lock-${{ github.sha }}
+          path: pubspec.lock
+          retention-days: 7
 
       - name: Enforce Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
@@ -91,7 +101,10 @@ jobs:
           cache: true
 
       - name: Restore locked packages
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
+
+      - name: Verify dependency lockfile is reproducible
+        run: git diff --exit-code -- pubspec.lock
 
       - name: Compile iOS simulator app without signing
         # Firebase Apple SDK 13 needs Swift 6.2; macos-15 defaults to Xcode

@@ -125,3 +125,21 @@ accepted until test evidence and its review checklist are complete. See
 ## Public repository notice
 
 Never commit real child data, authentication secrets, Firebase service account credentials, signing keys, exports, or device-specific personal information. This repository's open-source license has not yet been selected.
+
+## Family-sharing preview (F2, stacked draft)
+
+See [F2 implementation and security runbook](docs/F2_IMPLEMENTATION.md). The
+ordinary app remains **volatile preview**; no production Firebase connection is
+made by default. Run the F2 emulator backend using:
+
+```bash
+cd functions && npm ci && cd ..
+npx --prefix functions firebase emulators:start --project demo-little-rest --only auth,firestore,functions
+flutter run --dart-define=USE_FAMILY_EMULATOR=true
+```
+
+The older F1 synthetic emulator uses `firebase.dev.json` and
+`--dart-define=USE_FIREBASE_EMULATOR=true`. Never deploy the development rules.
+The production opt-in is deliberately blocked without environment-specific app
+identifiers and G2 security approval. Cloud function deployment, real device
+verification, and account-recovery QA remain open.

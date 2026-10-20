@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import 'firebase_emulator_host.dart';
+
 import '../features/sleep/data/firestore_sleep_repository.dart';
 
 /// Compile-time opt-in with --dart-define=USE_FIREBASE_EMULATOR=true.
@@ -21,7 +23,7 @@ Future<FirestoreSleepRepository> connectToDevelopmentEmulators() async {
   }
   await Firebase.initializeApp(
     options: FirebaseOptions(
-      apiKey: 'demo-api-key',
+      apiKey: demoFirebaseApiKey,
       appId: Platform.isIOS
           ? '1:1234567890:ios:1234567890123456'
           : '1:1234567890:android:1234567890123456',
@@ -30,7 +32,11 @@ Future<FirestoreSleepRepository> connectToDevelopmentEmulators() async {
     ),
   );
 
-  final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+  final host = resolveFirebaseEmulatorHost(
+    isAndroid: Platform.isAndroid,
+    configuredHost: configuredFirebaseEmulatorHost,
+    isRelease: kReleaseMode,
+  );
   final auth = FirebaseAuth.instance;
   await auth.useAuthEmulator(host, 9099);
   final firestore = FirebaseFirestore.instance;
