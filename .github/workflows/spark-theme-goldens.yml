@@ -30,7 +30,7 @@ jobs:
       - name: Resolve packages
         run: flutter pub get
       - name: Format source on a runner without local Java
-        run: dart format lib test
+        run: dart format lib test integration_test
       - name: Analyze formatted source
         run: flutter analyze --no-pub
       - name: Render golden references
