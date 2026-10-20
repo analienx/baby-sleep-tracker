@@ -119,14 +119,8 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            set -euo pipefail
             mkdir -p .e2e
-            npm exec --prefix functions -- firebase emulators:exec \
-              --project demo-little-rest \
-              --config firebase.json \
-              --only auth,firestore,functions \
-              "bash scripts/family-e2e-android.sh" \
-              2>&1 | tee .e2e/flutter-integration.log
+            bash -o pipefail -c 'npm exec --prefix functions -- firebase emulators:exec --project demo-little-rest --config firebase.json --only auth,firestore,functions "bash scripts/family-e2e-android.sh" 2>&1 | tee .e2e/flutter-integration.log'
 
       - name: Upload E2E evidence including failure logs
         if: always()
