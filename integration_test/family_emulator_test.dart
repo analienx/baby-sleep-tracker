@@ -65,6 +65,15 @@ void main() {
       while (DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 250));
         if (finder.evaluate().isNotEmpty) return;
+        if (purpose == 'family Today' &&
+            find.byType(SelectableText).evaluate().isNotEmpty) {
+          final errors = find
+              .byType(SelectableText)
+              .evaluate()
+              .map((element) => (element.widget as SelectableText).data ?? '')
+              .toList();
+          throw TestFailure('Create family failed: $errors');
+        }
       }
       // Preserve the user-visible error when a Firebase callable fails. In an
       // instrumented device run a bare timeout otherwise hides the actual

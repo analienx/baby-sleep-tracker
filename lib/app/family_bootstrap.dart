@@ -29,7 +29,7 @@ Future<FamilyClient> connectFamily() async {
   final app = await Firebase.initializeApp(
     options: useFamilyEmulator
         ? FirebaseOptions(
-            apiKey: 'demo-api-key',
+            apiKey: demoFirebaseApiKey,
             appId: Platform.isIOS
                 ? '1:1234567890:ios:1234567890123456'
                 : '1:1234567890:android:1234567890123456',

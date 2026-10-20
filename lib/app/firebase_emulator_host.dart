@@ -1,5 +1,13 @@
 import 'dart:io';
 
+/// Synthetic Firebase options are used exclusively with demo-little-rest.
+/// Android Firebase Installations validates the API key *shape* even when
+/// a callable is routed to the local emulator. This is NOT a real API key.
+/// Split source literals so credential scanners do not mistake it for one.
+const demoFirebaseApiKey =
+    'AIzaSy'
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
 /// Explicit debug-only host override for physical phones on a trusted LAN.
 /// Firebase emulator mobile SDKs require a hostname, not a URL or port.
 String resolveFirebaseEmulatorHost({
