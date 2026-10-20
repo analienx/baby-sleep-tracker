@@ -28,6 +28,21 @@ final class FirestoreSleepRepository
     _subscribe();
   }
 
+  /// Private account journal for real, no-billing Firebase Spark staging.
+  /// Rules enforce actor and path owner and prohibit other users' access.
+  FirestoreSleepRepository.personal({
+    required FirebaseFirestore firestore,
+    required String uid,
+    String Function()? newId,
+  }) : _operations = firestore
+           .collection('personalSleep')
+           .doc(uid)
+           .collection('operations'),
+       _syntheticUserId = uid,
+       _newId = newId ?? const Uuid().v4 {
+    _subscribe();
+  }
+
   /// Creates a household-scoped repository, with actor enforced by Rules.
   FirestoreSleepRepository.family({
     required FirebaseFirestore firestore,
@@ -90,7 +105,7 @@ final class FirestoreSleepRepository
             StoragePhase.failed,
             detail:
                 'Live updates unavailable. Showing last known history. '
-                'Check your connection and family access.',
+                'Check your connection and account access.',
           )
         : _quarantineCount > 0
         ? SleepStorageStatus(

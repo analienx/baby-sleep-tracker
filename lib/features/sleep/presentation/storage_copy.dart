@@ -5,6 +5,8 @@ enum StorageEnvironment {
   legacyEmulator,
   familyEmulator,
   familyCloud,
+  personalCloud,
+  personalEmulator,
 }
 
 String storageBadge(StorageEnvironment environment) => switch (environment) {
@@ -12,6 +14,8 @@ String storageBadge(StorageEnvironment environment) => switch (environment) {
   StorageEnvironment.legacyEmulator => 'EMULATOR',
   StorageEnvironment.familyEmulator => 'FAMILY DEV',
   StorageEnvironment.familyCloud => 'FAMILY',
+  StorageEnvironment.personalCloud => 'CLOUD',
+  StorageEnvironment.personalEmulator => 'PRIVATE DEV',
 };
 
 String storageMessage(
@@ -34,6 +38,10 @@ String storageMessage(
       StorageEnvironment.familyEmulator =>
         'Synced with local family emulator. Synthetic data only.',
       StorageEnvironment.familyCloud => 'Synced with your family cloud.',
+      StorageEnvironment.personalCloud =>
+        'Synced privately to Firebase. Protect your account with email before changing phones.',
+      StorageEnvironment.personalEmulator =>
+        'Synced with private-account test emulator. Synthetic data only.',
       StorageEnvironment.volatilePreview =>
         'Preview only — entries are not saved.',
     },

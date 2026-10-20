@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/emulator_bootstrap.dart';
 import '../../../app/family_bootstrap.dart';
+import '../../../app/personal_bootstrap.dart';
 import '../../../app/providers.dart';
 import '../../../app/theme.dart';
 import '../../../l10n/app_localizations.dart';
 import 'storage_copy.dart';
 
 StorageEnvironment get appStorageEnvironment {
+  if (usePersonalStaging) return StorageEnvironment.personalCloud;
+  if (usePersonalEmulator) return StorageEnvironment.personalEmulator;
   if (useFamilyProduction) return StorageEnvironment.familyCloud;
   if (useFamilyEmulator) return StorageEnvironment.familyEmulator;
   if (useFirebaseEmulator) return StorageEnvironment.legacyEmulator;

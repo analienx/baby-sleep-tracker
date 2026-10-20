@@ -19,6 +19,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
     required this.appearance,
     required this.onAppearanceChanged,
     this.familyAvailable = false,
+    this.personalCloudAvailable = false,
     this.familyFromCache = false,
     super.key,
   });
@@ -26,6 +27,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   final ThemeMode appearance;
   final Future<void> Function(ThemeMode) onAppearanceChanged;
   final bool familyAvailable;
+  final bool personalCloudAvailable;
   final bool familyFromCache;
 
   @override
@@ -164,6 +166,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 ),
+                if (widget.personalCloudAvailable) ...[
+                  const SizedBox(height: 14),
+                  _SettingsSection(
+                    title: 'Private cloud account',
+                    description: 'Keep your sleep history across app restarts '
+                        'and protect access with email. Family sharing requires '
+                        'the separate secure family service.',
+                    child: ListTile(
+                      leading: const Icon(Icons.cloud_done_outlined),
+                      title: const Text('Account and recovery'),
+                      subtitle: const Text('Email verification, restore, privacy and deletion'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push('/account'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 _SettingsSection(
                   title: strings.familyHeading,

@@ -96,3 +96,45 @@ test('family rules block strangers, privilege escalation, updates and revocation
     await env.cleanup();
   }
 });
+
+
+test('Spark personal sleep journal is user-private and append-only until explicit self-erasure', {
+  skip: !process.env.FIRESTORE_EMULATOR_HOST,
+}, async () => {
+  const env = await initializeTestEnvironment({
+    projectId: 'demo-little-rest',
+    firestore: { rules: readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8') },
+  });
+  try {
+    const owner = env.authenticatedContext('personal-owner').firestore();
+    const other = env.authenticatedContext('personal-other').firestore();
+    const unauth = env.unauthenticatedContext().firestore();
+    const ownerPath = 'personalSleep/personal-owner/operations/sleep-1';
+    const otherPath = 'personalSleep/personal-other/operations/sleep-1';
+    const start = new Date('2026-10-20T06:00:00Z');
+    const end = new Date('2026-10-20T06:30:00Z');
+    const valid = {
+      schemaVersion: 1, actorId: 'personal-owner', sessionId: 'sleep-1',
+      parentIds: [], deleted: false, recordedAtUtc: end,
+      startedAtUtc: start, endedAtUtc: end,
+    };
+    await assertSucceeds(owner.doc(ownerPath).set(valid));
+    await assertSucceeds(owner.doc(ownerPath).get());
+    await assertSucceeds(owner.collection('personalSleep/personal-owner/operations').get());
+    await assertFails(other.doc(ownerPath).get());
+    await assertFails(other.collection('personalSleep/personal-owner/operations').get());
+    await assertFails(unauth.doc(ownerPath).get());
+    await assertFails(owner.doc(otherPath).set({ ...valid, actorId: 'personal-other' }));
+    await assertFails(owner.doc('personalSleep/personal-owner').set({ role: 'admin' }));
+    await assertFails(owner.doc(ownerPath).update({ deleted: true }));
+    await assertFails(owner.doc('personalSleep/personal-owner/operations/forged')
+      .set({ ...valid, actorId: 'personal-other' }));
+    await assertFails(owner.doc('personalSleep/personal-owner/operations/bad-time')
+      .set({ ...valid, endedAtUtc: new Date('2026-10-19T06:00:00Z') }));
+    await assertFails(other.doc(ownerPath).delete());
+    await assertSucceeds(owner.doc(ownerPath).delete());
+    await assertSucceeds(owner.doc(ownerPath).get());
+  } finally {
+    await env.cleanup();
+  }
+});

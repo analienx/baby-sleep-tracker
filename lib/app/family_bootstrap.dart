@@ -36,7 +36,7 @@ Future<FamilyClient> connectFamily() async {
             messagingSenderId: '1234567890',
             projectId: 'demo-little-rest',
           )
-        : _productionOptions(),
+        : configuredFirebaseOptions(),
   );
   if (useFamilyProduction) {
     // Must run before Auth/Firestore/Functions. Neither debug-provider tokens
@@ -69,7 +69,7 @@ Future<FamilyClient> connectFamily() async {
   return FamilyClient(auth: auth, firestore: firestore, functions: functions);
 }
 
-FirebaseOptions _productionOptions() {
+FirebaseOptions configuredFirebaseOptions() {
   const project = String.fromEnvironment('FIREBASE_PROJECT_ID');
   // Firebase generates independently restricted API keys for Android and iOS.
   const androidApiKey = String.fromEnvironment('FIREBASE_ANDROID_API_KEY');

@@ -29,10 +29,33 @@ android {
         versionName = flutter.versionName
     }
 
+    // Separate, repeatably signed Spark staging app. The preview package and
+    // its locally entered records are never replaced by these QA builds.
+    val littleRestStagingBuild = System.getenv("LITTLE_REST_STAGING_BUILD") == "1"
+    signingConfigs {
+        if (littleRestStagingBuild) {
+            create("littleRestStaging") {
+                storeFile = file(System.getenv("LITTLE_REST_STAGING_KEYSTORE_PATH")
+                    ?: error("Missing staging keystore path"))
+                storePassword = System.getenv("LITTLE_REST_STAGING_KEYSTORE_PASSWORD")
+                    ?: error("Missing staging keystore password")
+                keyAlias = "little-rest-staging"
+                keyPassword = storePassword
+                storeType = "pkcs12"
+            }
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            if (littleRestStagingBuild) {
+                applicationIdSuffix = ".staging"
+                signingConfig = signingConfigs.getByName("littleRestStaging")
+            }
+        }
         release {
             // Deliberately unsigned until the F4 release/signing review gate.
-            // Never publish an APK signed with the default debug identity.
+            // Never publish an APK signed with the staging/debug identity.
         }
     }
 }
