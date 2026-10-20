@@ -9,6 +9,13 @@ void main() {
         isRelease: release,
       );
 
+  test('synthetic Firebase key passes Android SDK format requirements', () {
+    // Firebase Installations rejects arbitrary text keys even for a
+    // locally emulated Functions callable. Never substitute a real key.
+    expect(demoFirebaseApiKey, matches(RegExp(r'^A[\w-]{38}$')));
+    expect(demoFirebaseApiKey.length, 39);
+  });
+
   test('native simulator defaults preserved', () {
     expect(host(''), '10.0.2.2');
     expect(host('', android: false), 'localhost');
