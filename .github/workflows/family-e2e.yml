@@ -79,6 +79,13 @@ jobs:
           java -version
           npm ci --prefix functions --no-audit --no-fund
 
+      - name: Provide disposable emulator Secret Manager override
+        # Firebase's official emulator contract uses .secret.local for v2
+        # defineSecret bindings. Avoid accidental calls to real Secret Manager
+        # or a missing-secret failure in unauthenticated GitHub runners.
+        run: |
+          printf 'FAMILY_ABUSE_PEPPER=ci-demo-pepper-not-for-any-deployed-project\n' > functions/.secret.local
+
       - name: Validate private debug build server IP
         run: |
           python3 - <<'PY'

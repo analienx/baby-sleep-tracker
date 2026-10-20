@@ -52,7 +52,8 @@ authorization to deploy a family-data app with real infant records.
 - [ ] Android family E2E: the first real Android simulator run reached
   onboarding but timed out after tapping Create family. The workflow now
   retains UI errors, filtered Android logs and screenshots on failures, and
-  supplies the same synthetic quota pepper as the passing backend CI.
+  supplies the same synthetic quota pepper as the passing backend CI through
+  Firebase's official ignored `.secret.local` emulator override.
 - [ ] CI Android debug and unsigned iOS simulator build on **integrated PR
   head** (Linux runner lacks Android SDK and macOS/Xcode).
 - [ ] Two physical phones: install/reboot/offline edit/reconnect/conflict,
