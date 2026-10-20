@@ -69,6 +69,162 @@ void main() {
     expect(find.text('0h 35m'), findsOneWidget);
   });
 
+  for (final scenario in [
+    (size: const Size(320, 568), textScale: 1.0),
+    (size: const Size(360, 640), textScale: 1.0),
+    (size: const Size(375, 667), textScale: 1.0),
+    (size: const Size(390, 844), textScale: 1.6),
+    (size: const Size(320, 568), textScale: 2.0),
+  ]) {
+    testWidgets('Primary action remains visible at ${scenario.size} '
+        'with ${scenario.textScale}x text', (tester) async {
+      tester.view.physicalSize = scenario.size;
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scenario.textScale;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+      });
+
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+
+      final action = find.widgetWithText(FilledButton, 'Start sleep');
+      expect(action, findsOneWidget);
+      final bounds = tester.getRect(action);
+      final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
+      expect(bounds.top, greaterThanOrEqualTo(0));
+      expect(bounds.bottom, lessThan(navigationTop));
+      expect(bounds.height, greaterThanOrEqualTo(48));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(action);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.widgetWithText(FilledButton, 'Wake up'), findsOneWidget);
+    });
+  }
+
+  testWidgets('elapsed ticker stops when backgrounded and resyncs on resume', (
+    tester,
+  ) async {
+    final clock = FakeClock(DateTime.utc(2026, 10, 19, 10));
+    await tester.pumpWidget(appForTest(clock: clock));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start sleep'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    clock.advance(const Duration(seconds: 15));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('00:00:15'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    clock.advance(const Duration(minutes: 2));
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('00:00:15'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(find.text('00:02:15'), findsOneWidget);
+  });
+
+  testWidgets('compact Today keeps backdate alongside the sticky action', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    await tester.pumpWidget(appForTest(repository: repository));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilledButton, 'Start sleep'), findsOneWidget);
+    final backdate = find.byTooltip('Backdate sleep start');
+    expect(backdate, findsOneWidget);
+    final earlierLabel = find.text('Earlier');
+    expect(
+      tester.widget<Text>(earlierLabel).style?.color,
+      Theme.of(tester.element(earlierLabel)).colorScheme.onSurface,
+    );
+    final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
+    expect(tester.getRect(backdate).bottom, lessThan(navigationTop));
+    await tester.tap(backdate);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start 5 min ago'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.widgetWithText(FilledButton, 'Wake up'), findsOneWidget);
+    expect((await repository.readSessions()).length, 1);
+  });
+
+  testWidgets('conflicting active sessions block the sticky toggle', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    await repository.put(
+      SleepSession(
+        id: 'one',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 9),
+        endedAtUtc: null,
+      ),
+    );
+    await repository.put(
+      SleepSession(
+        id: 'two',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 9, 30),
+        endedAtUtc: null,
+      ),
+    );
+    await tester.pumpWidget(appForTest(repository: repository));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, 'Review History'), findsOneWidget);
+    expect(find.byTooltip('Backdate sleep start'), findsNothing);
+    await tester.tap(find.text('Review History'));
+    await tester.pumpAndSettle();
+    expect(find.text('Every little rest.'), findsOneWidget);
+    expect((await repository.readSessions()).length, 2);
+  });
+
+  testWidgets('History labels both sides of a cross-midnight session', (
+    tester,
+  ) async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final start = DateTime.utc(2026, 10, 19, 12);
+    final end = DateTime.utc(2026, 10, 20, 12);
+    await repository.put(
+      SleepSession(id: 'cross-day', startedAtUtc: start, endedAtUtc: end),
+    );
+
+    await tester.pumpWidget(appForTest(repository: repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+
+    final context = tester.element(find.text('Every little rest.'));
+    final localizations = MaterialLocalizations.of(context);
+    final subtitle =
+        '${localizations.formatMediumDate(start.toLocal())} '
+        '${formatLocalTime(context, start)} → '
+        '${localizations.formatMediumDate(end.toLocal())} '
+        '${formatLocalTime(context, end)}';
+    expect(find.text(subtitle), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'History adds missed rest, deletes after confirmation, restores',
     (tester) async {

@@ -34,6 +34,12 @@ String formatShortDuration(Duration duration) {
 String formatLocalTime(BuildContext context, DateTime atUtc) =>
     TimeOfDay.fromDateTime(atUtc.toLocal()).format(context);
 
+String formatLocalDateTime(BuildContext context, DateTime atUtc) {
+  final local = atUtc.toLocal();
+  return '${MaterialLocalizations.of(context).formatMediumDate(local)}, '
+      '${formatLocalTime(context, atUtc)}';
+}
+
 class ScreenIntro extends StatelessWidget {
   const ScreenIntro({required this.title, required this.subtitle, super.key});
 
