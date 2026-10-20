@@ -120,6 +120,10 @@ test('create, invite, redeem, revoke via real Auth + Functions emulators', {
       'Firebase Authentication account must actually be deleted');
     const caregiverDeletionMarker=await adminDb.doc('accountDeletions/'+thirdUid).get();
     assert.equal(caregiverDeletionMarker.exists,true);
+    assert.ok(caregiverDeletionMarker.data().completedAt,
+      'completed Auth deletion must mark its tombstone before TTL scheduling');
+    assert.ok(caregiverDeletionMarker.data().expiresAt,
+      'finished deletions may safely expire their stale-token fences');
     // Simulate a process interruption after the family was fenced and its
     // owner membership removed. The retained owner profile must permit a
     // safe deletion retry without re-exposing cloud data to mobile clients.

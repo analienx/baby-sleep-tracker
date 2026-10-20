@@ -244,7 +244,9 @@ function familyService(db, admin) {
   /// An Auth account is separate from the household. Remove its private
   /// membership/profile first; shared caregiver edits remain as a pseudonymous
   /// immutable audit journal. The owner must delete the whole household.
-  /// Retained, short-lived markers make failed Admin Auth deletions retryable.
+  /// Pending markers have no TTL: an interrupted Admin Auth deletion must NOT
+  /// silently restore account access a day later. Only a confirmed Auth
+  /// deletion receives a 24-hour TTL for stale-token fencing.
   async function deleteAccount(request) {
     const uid = uidOf(request);
     if (!recentlyAuthenticated(request)) throw new Error('recent-login-required');
@@ -276,7 +278,7 @@ function familyService(db, admin) {
           }
         }
         tx.create(marker, {
-          requestedAt:stamp(), expiresAt:timestamp(Date.now()+ttlMs),
+          requestedAt:stamp(),
         });
       });
     }
@@ -307,6 +309,11 @@ function familyService(db, admin) {
       // A previous attempt can have deleted Auth but timed out before reply.
       if (error.code !== 'auth/user-not-found') throw error;
     }
+    // Only now is a TTL safe. A failure to write completion leaves the marker
+    // protected and retryable; the deleted Auth identity cannot sign in again.
+    await marker.set({
+      completedAt:stamp(), expiresAt:timestamp(Date.now()+ttlMs),
+    },{merge:true});
     return {deleted:true};
   }
   return {createFamily,issueInvite,redeemInvite,revokeMember,deleteFamily,deleteAccount};
