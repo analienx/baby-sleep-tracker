@@ -71,14 +71,17 @@ Future<FamilyClient> connectFamily() async {
 
 FirebaseOptions _productionOptions() {
   const project = String.fromEnvironment('FIREBASE_PROJECT_ID');
-  const apiKey = String.fromEnvironment('FIREBASE_API_KEY');
+  // Firebase generates independently restricted API keys for Android and iOS.
+  const androidApiKey = String.fromEnvironment('FIREBASE_ANDROID_API_KEY');
+  const iosApiKey = String.fromEnvironment('FIREBASE_IOS_API_KEY');
   const sender = String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
   const androidApp = String.fromEnvironment('FIREBASE_ANDROID_APP_ID');
   const iosApp = String.fromEnvironment('FIREBASE_IOS_APP_ID');
   const iosBundle = String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID');
   if ([
     project,
-    apiKey,
+    androidApiKey,
+    iosApiKey,
     sender,
     androidApp,
     iosApp,
@@ -90,7 +93,7 @@ FirebaseOptions _productionOptions() {
   }
   return FirebaseOptions(
     projectId: project,
-    apiKey: apiKey,
+    apiKey: Platform.isIOS ? iosApiKey : androidApiKey,
     messagingSenderId: sender,
     appId: Platform.isIOS ? iosApp : androidApp,
     iosBundleId: Platform.isIOS ? iosBundle : null,
