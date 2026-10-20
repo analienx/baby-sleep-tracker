@@ -38,7 +38,7 @@ authorization to deploy a family-data app with real infant records.
 ## Verified with synthetic data
 
 - [x] Flutter format and static analysis with zero reported issues.
-- [x] **78 Flutter domain/widget/golden tests** passed, including the
+- [x] **93 Flutter domain/widget/golden tests** passed, including the
   historical-dispute and rapid-preference regressions.
 - [x] Firebase Auth + Firestore + Functions emulator: two signed-in caregivers,
   one-time invitations, role protection, operation sync, revocation, deletion,
@@ -46,6 +46,13 @@ authorization to deploy a family-data app with real infant records.
 - [x] Firestore Rules emulator: strangers, forged actors, invalid ancestry,
   role escalation, and deletion-fenced reads/writes are denied.
 - [x] Staged-export cleanup and complete/incomplete archive tests.
+- [x] Explicit opt-in App Check, verified-email invitations, account deletion,
+  abuse quotas and CLI-managed TTL policy; Auth/Firestore/Functions synthetic
+  integration suite passes. This is **not** deployed-project evidence.
+- [ ] Android family E2E: the first real Android simulator run reached
+  onboarding but timed out after tapping Create family. The workflow now
+  retains UI errors, filtered Android logs and screenshots on failures, and
+  supplies the same synthetic quota pepper as the passing backend CI.
 - [ ] CI Android debug and unsigned iOS simulator build on **integrated PR
   head** (Linux runner lacks Android SDK and macOS/Xcode).
 - [ ] Two physical phones: install/reboot/offline edit/reconnect/conflict,
@@ -61,9 +68,10 @@ authorization to deploy a family-data app with real infant records.
 1. **Production security:** The family backend is exercised under emulators,
    not deployed to a production project. Offline copies downloaded before a
    caregiver is revoked cannot be remotely erased.
-2. **Identity deletion:** Household cloud-data deletion does not delete
-   separate Firebase Authentication accounts. In-app credential deletion and
-   recent-login reauthentication require implementation before release.
+2. **Identity deletion validation:** Dedicated Auth account deletion with
+   recent password reauthentication, interrupted-deletion fencing and a
+   hosted self-service entry point is implemented. Live App Check, hosted URL,
+   actual Auth removal, and Android/iPhone cache-wipe results remain unverified.
 3. **Localization:** The F3 ARB-based shell is English-only, and inherited F1
    Today/History/editor and F2 family screens retain literal strings.
 4. **Travel-zone semantics:** Day charts follow the *viewing device's* local
