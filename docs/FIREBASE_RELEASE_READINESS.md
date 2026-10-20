@@ -17,6 +17,52 @@
 | External account deletion | Firebase Hosting-only self-service page signs in with ephemeral session and calls same verified deletion backend | Must register Web App + reCAPTCHA Enterprise App Check, replace `hosting/config.js` placeholder and deploy a working URL before Play Store submission. Hosting deployment fails closed while placeholder remains. |
 | Privacy/retention | `users` only self-readable, `accountDeletions` and `familyRateLimits` unreadable client-side, `familyInvites` secret, no Firebase Storage, Analytics or Crashlytics required | Explicit privacy policy must describe pseudonymous historical actor UID, retained offline copies, TTL timing and Firebase processing geography. |
 
+## Spark staging provisioned — 20 October 2026
+
+**Nonproduction, synthetic data only.** The dedicated Firebase project
+`little-rest-stage-jh-261020` is ACTIVE and Firebase-enabled. Cloud Billing
+reported `billingEnabled=false` and no linked billing account. No Blaze
+upgrade has been approved or performed.
+
+- Registered package IDs: Android `com.analienx.baby_sleep_tracker`; iOS
+  `com.analienx.babySleepTracker`; separate Web app reserved for a future
+  account-deletion page. This registration does not constitute App Check or
+  store signing approval.
+- Created the sole free-tier Firestore Native **Standard** `(default)`
+  database in `eur3`, with PITR disabled; its free-tier flag is true.
+  Deployed only `firestore.rules` from this review branch and confirmed server
+  compilation and release. **Do not** deploy the repository's TTL field
+  policies on Spark: [TTL deletes require billing](https://firebase.google.com/docs/firestore/pricing).
+  The `firestore.indexes.json` TTL definitions are for later, reviewed Blaze
+  production deployment, not this free staging project.
+- Enabled anonymous and email/password providers, required passwords for email
+  sign-in, confirmed improved email privacy, and enforced a 12-character
+  minimum password policy using the Identity Toolkit project configuration.
+  Verification email sender branding/templates remain to be reviewed.
+- Downloaded Android, iOS, and Web public app config into an **ignored**
+  `private/` folder in the isolated staging checkout; assembled
+  `private/family-staging.json`. Android and iOS use **different API keys**:
+  supply `FIREBASE_ANDROID_API_KEY` and `FIREBASE_IOS_API_KEY` separately.
+  The old single `FIREBASE_API_KEY` define is not supported.
+- **No callable Cloud Functions deployed:** the six secure family operations
+  need Blaze. Live family onboarding, invitations, deletion, and the hosted
+  deletion page are **not functional** on Spark. The local
+  `demo-little-rest` emulator environment is entirely separate and must not
+  be confused with the real staging project.
+- The portable local Java runtime, its ZIP, and Firestore emulator JAR were
+  deleted from the Windows test host at the user's request. Firebase CLI and
+  the USB debug APK remain. For full family E2E use the pinned GitHub
+  Actions emulator runners, or later arrange a separately approved local
+  testing environment. A physical Android device is not yet connected.
+- **Do not use real baby information** before G2 privacy/security and G3
+  usability reviews. Do not infer production readiness from Firebase project
+  creation, rules deployment, or green synthetic GitHub CI.
+
+For future paid production: use a **separate** Firebase project, signed app
+registrations and App Check, production secret `FAMILY_ABUSE_PEPPER`, approved
+privacy policy and retention, TTL, and the required deletion URL. None of
+those production changes happened during Spark provisioning.
+
 ## Provision a **new**, dedicated production Firebase project
 
 1. Select and record **project ID**, **billing owner**, and Firestore default database location before creation. Prefer an EU location such as `eur3` (multiregional) if its cost/availability trade-off is acceptable; Functions are pinned to `europe-west1`. Database location is effectively immutable. Enable a billing plan that supports Cloud Functions v2 and set Cloud Billing budget/alerts.
