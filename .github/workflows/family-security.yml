@@ -22,11 +22,22 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: functions/package-lock.json
+      - name: Java 21 for Firestore emulator
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Install backend and emulator tooling
         run: npm ci --prefix functions --no-audit --no-fund
       - name: Static and pure unit tests
         run: npm run check --prefix functions && npm test --prefix functions
+      - name: Validate public account-deletion page syntax
+        run: node --check hosting/deletion.js && node --check hosting/config.js && node --check scripts/check-hosting-ready.mjs
       - name: Verify Java for Firestore emulator
         run: java -version
       - name: Rule adversarial and callable integration tests
+        env:
+          # Disposable test-only pepper; never a Cloud Secret Manager credential.
+          FAMILY_ABUSE_PEPPER: ci-demo-pepper-not-for-any-deployed-project
+          FIREBASE_CLI_DISABLE_AUTOUPDATE: '1'
         run: npm exec --prefix functions -- firebase emulators:exec --project demo-little-rest --only auth,firestore,functions "npm test --prefix functions"

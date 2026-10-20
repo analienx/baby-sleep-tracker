@@ -2,10 +2,11 @@
 
 A calm, family-first sleep tracker for Android and iPhone.
 
-**Status:** F0 review pending; F1 algorithms and opt-in Firebase emulator
-integration are under review. The default app uses **non-persistent preview
-storage** and no production Firebase project is configured. Do not use these
-builds to log real sleep or rely on them for records.
+**Status:** F0/F1/F2/F3 are **draft, not release-approved**. The F2 family
+backend and F3 experience fixes are integrated for joint review, but G0–G3
+and physical-device sign-off remain open. The default app uses
+**non-persistent preview storage** and no production Firebase project is
+configured. Do not use these builds for real infant sleep or as a backup.
 
 ## Run the preview
 
@@ -20,9 +21,30 @@ flutter run
 
 The app opens on Today. Tap **Start sleep** / **Wake up** to interact with a
 memory-only demonstration, or navigate between **Today**, **History** and
-**Trends**. Every screen marks its preview status: all entries disappear when
+**Trends**. Settings (gear icon) provides a device-saved appearance preference
+and JSON/CSV sharing. The seven-day view
+uses local civil days, marks absent records as unknown, and labels today as
+incomplete. Every screen marks its preview status: all entries disappear when
 the app restarts. No child profile, credentials, synthetic sleep fixture or
 Firebase network call is configured in the running app.
+
+**F3 export semantics:** Family-mode archives include the immutable operation
+journal, accepted sessions and competing edits. JSON/CSV archives say whether
+they are cloud-confirmed, complete, and free of malformed operation data.
+Preview-mode exports are explicitly **partial** and not durable. A share-sheet
+file may remain in temporary app storage for up to a day; Settings can clear
+those staged copies immediately after sharing. External share recipients can
+retain separate copies. Family invitations, revocation, and owner-only
+household deletion run only against the F2 backend, never ordinary preview.
+Household deletion alone does not delete separate Firebase sign-in
+credentials. The new **Delete my account** action removes Firebase Auth as
+well, with password reauthentication and separate owner/caregiver semantics.
+Shared caregiver edits retain pseudonymous attribution; previously cached
+copies on other phones cannot be remotely erased. An external self-service
+deletion page is prepared for Firebase Hosting, but cannot be deployed until
+its production App Check web registration is configured. Deployment of the
+rate-limited family callables also requires the Secret Manager setting
+`FAMILY_ABUSE_PEPPER` (see the Firebase release-readiness runbook).
 
 ### Opt-in offline Firebase development mode (synthetic data only)
 
@@ -55,8 +77,8 @@ flutter test
 flutter build apk --debug
 ```
 
-Unit tests inject a fake clock and synthetic sessions. The two golden snapshots
-under `test/goldens/` capture the light/dark Today visual baseline. Updating
+Unit tests inject a fake clock and synthetic sessions. Six golden snapshots
+under `test/goldens/` capture light/dark Today, Trends and Settings. Updating
 them requires an intentional review (`flutter test --update-goldens`). CI pins
 Flutter and the GitHub Actions source revisions, uses the committed
 `pubspec.lock`, scans for secrets, uploads a **debug** Android APK and checks an
@@ -70,6 +92,8 @@ lib/app/                         Navigation, themes, clock and DI
 lib/features/sleep/domain/       UTC sessions, calculations, actions, contracts
 lib/features/sleep/data/         Preview and emulator-only Firestore adapters
 lib/features/sleep/presentation/ Today, History, Trends
+lib/features/settings/           Appearance, export and family navigation
+lib/l10n/                        English message bundle and localization API
 test/domain/                     UTC/DST/operation replay and fake-clock tests
 test/widget_test.dart            Navigation, semantics and visual tests
 ```
@@ -101,6 +125,7 @@ No feeding, diaper tracking, medical sleep scoring, AI predictions, or passive m
 Design decisions, data contracts, risks, and review requirements are documented in:
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 - [Architecture decision](docs/ADR-0001-flutter-firebase.md)
+- [Firebase production-readiness and account-deletion runbook](docs/FIREBASE_RELEASE_READINESS.md)
 - [GitHub backlog](../../issues)
 
 ## Development principles
@@ -120,7 +145,8 @@ Each phase has a blocking GitHub review gate. F0 is tracked in issues
 depend on that gate and the F1 review gate is [#9](../../issues/9). No phase is
 accepted until test evidence and its review checklist are complete. See
 [F0 review notes](docs/F0_REVIEW.md) and
-[F1 algorithm evidence](docs/F1_ALGORITHMS.md).
+[F1 algorithm evidence](docs/F1_ALGORITHMS.md) and
+[F3 review evidence](docs/F3_REVIEW.md).
 
 ## Public repository notice
 
@@ -142,4 +168,7 @@ The older F1 synthetic emulator uses `firebase.dev.json` and
 `--dart-define=USE_FIREBASE_EMULATOR=true`. Never deploy the development rules.
 The production opt-in is deliberately blocked without environment-specific app
 identifiers and G2 security approval. Cloud function deployment, real device
-verification, and account-recovery QA remain open.
+verification, and account-recovery QA remain open. The deletion flow requires
+typing `DELETE`, fences family data immediately, recursively removes nested
+sleep history and invitations, and permits interrupted cleanup to be resumed.
+It has emulator security coverage, not production verification.

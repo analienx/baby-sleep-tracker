@@ -9,6 +9,14 @@ Branch: `feat/f2-family-sharing` (stacked on F1 History, PR #24). G0 and G1 are 
 - `--dart-define=USE_FAMILY_PRODUCTION=true --dart-define-from-file=private/family-prod.json`: explicit real Firebase opt-in. Never enable until independent G2 security review, project provisioning, App Check, deletion policy, and deployment checklist. Real Firebase IDs are client configuration, not privileged secrets. **Never commit service account keys**.
 - All F2 Functions run in `europe-west1`; choose an EU Firestore database location before provisioning. Firebase Auth metadata may follow different geographic processing rules.
 
+**October 20 readiness update:** F3 integration adds App Check on signed
+Android/iPhone production builds, email verification before caregiver invites
+or redemption, per-family invite quota, an Auth account-deletion callable with
+recent-login verification, device-cache purge attempt and the external Hosting
+deletion workflow. These changes are covered by the separate
+[Firebase readiness runbook](FIREBASE_RELEASE_READINESS.md). The earlier
+limitations below are historical review context, not a claim of deployment.
+
 ## Auth and identity
 Anonymous sign-in on first online start, persistent on the installed device. `linkWithCredential` email/password preserves the existing UID, sleep data and family membership. A credential already in use is rejected with a visible error; **never automatically sign in and orphan an anonymous family**. An existing account may sign into a fresh unjoined install; unsigned offline drafts cannot be carried between identities. Email/password is supported on Android and iOS. Password reset/recovery UX and external identity providers remain follow-up work, not a claimed G2 pass.
 

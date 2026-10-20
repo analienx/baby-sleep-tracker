@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/family_client.dart';
+import 'account_deletion_action.dart';
+import 'account_verification_action.dart';
 
 final class FamilyScreen extends StatefulWidget {
   const FamilyScreen({super.key, required this.client, required this.family});
@@ -49,6 +51,64 @@ final class _FamilyScreenState extends State<FamilyScreen> {
     }
   }
 
+  Future<void> _confirmDeleteHousehold() async {
+    final confirmation = TextEditingController();
+    try {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, refresh) => AlertDialog(
+            title: const Text('Permanently delete household?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'All caregivers will lose access. Every sleep record and '
+                  'its edit history will be deleted from the cloud. This '
+                  'cannot be undone. Export a confirmed archive first. '
+                  'Previously downloaded offline copies on other devices '
+                  'cannot be remotely erased. Your sign-in account remains.',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: confirmation,
+                  onChanged: (_) => refresh(() {}),
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Type DELETE to confirm',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: confirmation.text == 'DELETE'
+                    ? () => Navigator.pop(dialogContext, true)
+                    : null,
+                child: const Text('Delete permanently'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (approved == true && mounted) {
+        await _run(() => widget.client.deleteHousehold());
+      }
+    } finally {
+      // Dialog dismissal animates through the next frame; allow mounted
+      // TextField to detach before disposing its controller.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => confirmation.dispose(),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final current = widget.client.auth.currentUser;
@@ -64,6 +124,7 @@ final class _FamilyScreenState extends State<FamilyScreen> {
                 ? 'Temporary account — link an email before inviting others or switching phones.'
                 : 'Recoverable account: ${current?.email ?? "linked"}',
           ),
+          AccountVerificationAction(client: widget.client),
           if (current?.isAnonymous == true) ...[
             TextField(
               controller: _email,
@@ -89,7 +150,7 @@ final class _FamilyScreenState extends State<FamilyScreen> {
           const Divider(height: 32),
           FilledButton.icon(
             icon: const Icon(Icons.person_add_alt),
-            onPressed: _busy || current?.isAnonymous == true
+            onPressed: _busy || current?.emailVerified != true
                 ? null
                 : () => _run(() async {
                     final issued = await widget.client.createInvite();
@@ -182,7 +243,41 @@ final class _FamilyScreenState extends State<FamilyScreen> {
                             )
                           : null,
                     ),
+                  if (owner) ...[
+                    const Divider(height: 32),
+                    ListTile(
+                      leading: const Icon(Icons.delete_forever_outlined),
+                      title: const Text('Delete household data'),
+                      subtitle: const Text(
+                        'Owner only · permanent cloud deletion of all '
+                        'sleep records and edit history',
+                      ),
+                      enabled: !_busy && !snapshot.data!.metadata.isFromCache,
+                      onTap: _busy || snapshot.data!.metadata.isFromCache
+                          ? null
+                          : _confirmDeleteHousehold,
+                    ),
+                  ],
                 ],
+              );
+            },
+          ),
+          const Divider(height: 32),
+          // Never assume role from cached state for a destructive server
+          // action: the callable independently verifies actual ownership.
+          StreamBuilder(
+            stream: widget.client.watchMembers(widget.family.familyId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.metadata.isFromCache) {
+                return const Text('Reconnect to manage your account.');
+              }
+              final owner = snapshot.data!.docs.any(
+                (doc) =>
+                    doc.id == current?.uid && doc.data()['role'] == 'owner',
+              );
+              return AccountDeletionAction(
+                client: widget.client,
+                isOwner: owner,
               );
             },
           ),

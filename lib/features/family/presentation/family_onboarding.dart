@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../data/family_client.dart';
+import 'account_deletion_action.dart';
+import 'account_verification_action.dart';
 
 final class FamilyOnboarding extends StatefulWidget {
   const FamilyOnboarding({super.key, required this.client});
@@ -54,7 +56,10 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
     final user = widget.client.auth.currentUser;
     return MaterialApp(
       title: 'Little Rest · Family',
-      theme: ThemeData(useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        splashFactory: InkRipple.splashFactory,
+      ),
       home: Scaffold(
         body: SafeArea(
           child: Center(
@@ -71,6 +76,14 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                   ),
                   const Text('Your family sleep journal, private by default.'),
                   const SizedBox(height: 22),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SelectableText(
+                        _error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
                   TextField(
                     controller: _baby,
                     maxLength: 50,
@@ -93,7 +106,7 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                     ),
                   ),
                   OutlinedButton(
-                    onPressed: _busy
+                    onPressed: _busy || user?.emailVerified != true
                         ? null
                         : () =>
                               _run(() => widget.client.joinFamily(_code.text)),
@@ -115,7 +128,7 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                     controller: _password,
                     obscureText: true,
                     decoration: const InputDecoration(
-                      labelText: 'Password (minimum 6 characters)',
+                      labelText: 'Password (minimum 12 characters)',
                     ),
                   ),
                   if (user?.isAnonymous == true)
@@ -130,6 +143,7 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                             ),
                       child: const Text('Secure this account'),
                     ),
+                  AccountVerificationAction(client: widget.client),
                   TextButton(
                     onPressed: _busy
                         ? null
@@ -150,16 +164,10 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                           ),
                     child: const Text('Forgot password?'),
                   ),
+                  const Divider(height: 32),
+                  AccountDeletionAction(client: widget.client),
                   if (_info != null) Text(_info!),
                   if (_busy) const LinearProgressIndicator(),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: SelectableText(
-                        _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
                 ],
               ),
             ),

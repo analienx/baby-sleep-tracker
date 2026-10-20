@@ -17,74 +17,177 @@ final class FamilyGate extends StatelessWidget {
   final FamilyClient client;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<User?>(
-    stream: client.auth.userChanges(),
-    initialData: client.auth.currentUser,
-    builder: (context, authSnapshot) {
-      final user = authSnapshot.data;
-      if (user == null) {
+  Widget build(BuildContext context) => ValueListenableBuilder<String?>(
+    valueListenable: client.accountDeletionNotice,
+    builder: (context, notice, child) {
+      if (notice != null) {
         return MaterialApp(
           home: Scaffold(
             body: Center(
-              child: FilledButton(
-                onPressed: () => client.auth.signInAnonymously(),
-                child: const Text('Start a new private session'),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(notice, textAlign: TextAlign.center),
               ),
             ),
           ),
         );
       }
-      return StreamBuilder<FamilySnapshot>(
-        key: ValueKey(user.uid),
-        stream: client.watchFamily(user.uid),
-        builder: (context, familySnapshot) {
-          if (familySnapshot.hasError) {
-            return MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Family access unavailable: ${familySnapshot.error}',
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-          if (familySnapshot.connectionState == ConnectionState.waiting) {
-            return const MaterialApp(
-              home: Scaffold(body: Center(child: CircularProgressIndicator())),
-            );
-          }
-          final presence = familySnapshot.data;
-          final family = presence?.family;
-          if (family == null && presence?.isFromCache == true) {
-            return const MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Checking family access. Reconnect to the internet '
-                      'before creating or joining a family.',
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-          if (family == null) return FamilyOnboarding(client: client);
-          return _FamilyWorkspace(
-            key: ValueKey('${user.uid}/${family.familyId}/${family.babyId}'),
-            client: client,
-            family: family,
-            isFromCache: presence!.isFromCache,
-            uid: user.uid,
-          );
-        },
-      );
+      return child!;
     },
+    child: StreamBuilder<User?>(
+      stream: client.auth.userChanges(),
+      initialData: client.auth.currentUser,
+      builder: (context, authSnapshot) {
+        final user = authSnapshot.data;
+        if (user == null) {
+          return MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () => client.auth.signInAnonymously(),
+                  child: const Text('Start a new private session'),
+                ),
+              ),
+            ),
+          );
+        }
+        return StreamBuilder<FamilySnapshot>(
+          key: ValueKey(user.uid),
+          stream: client.watchFamily(user.uid),
+          builder: (context, familySnapshot) {
+            if (familySnapshot.hasError) {
+              return MaterialApp(
+                home: Scaffold(
+                  body: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Family access unavailable: ${familySnapshot.error}',
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            if (familySnapshot.connectionState == ConnectionState.waiting) {
+              return const MaterialApp(
+                home: Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                ),
+              );
+            }
+            final presence = familySnapshot.data;
+            final family = presence?.family;
+            if (presence?.deletionInProgress == true) {
+              return _HouseholdDeletionPending(client: client);
+            }
+            if (family == null && presence?.isFromCache == true) {
+              return const MaterialApp(
+                home: Scaffold(
+                  body: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Checking family access. Reconnect to the internet '
+                        'before creating or joining a family.',
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            if (family == null) return FamilyOnboarding(client: client);
+            return _FamilyWorkspace(
+              key: ValueKey('${user.uid}/${family.familyId}/${family.babyId}'),
+              client: client,
+              family: family,
+              isFromCache: presence!.isFromCache,
+              uid: user.uid,
+            );
+          },
+        );
+      },
+    ),
+  );
+}
+
+/// Owners retain their signed-in account and a retry button while a large
+/// household is being removed. The server fences all family reads/writes
+/// as soon as the deletion flag is committed.
+final class _HouseholdDeletionPending extends StatefulWidget {
+  const _HouseholdDeletionPending({required this.client});
+  final FamilyClient client;
+
+  @override
+  State<_HouseholdDeletionPending> createState() =>
+      _HouseholdDeletionPendingState();
+}
+
+final class _HouseholdDeletionPendingState
+    extends State<_HouseholdDeletionPending> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _retry() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.client.deleteHousehold();
+      // The owner's profile listener takes us back to onboarding.
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Cloud cleanup could not be confirmed. Reconnect and retry. '
+              'Household access remains blocked until deletion completes.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    home: Scaffold(
+      appBar: AppBar(title: const Text('Deleting household')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.hourglass_bottom_rounded, size: 40),
+                const SizedBox(height: 16),
+                const Text(
+                  'The household is locked while its cloud records, '
+                  'invitations, and edit history are permanently removed. '
+                  'This may take a little while.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _busy ? null : _retry,
+                  child: Text(
+                    _busy ? 'Removing…' : 'Resume or verify deletion',
+                  ),
+                ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(_error!, textAlign: TextAlign.center),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 

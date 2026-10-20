@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:baby_sleep_tracker/app/app.dart';
 import 'package:baby_sleep_tracker/app/providers.dart';
+import 'package:baby_sleep_tracker/app/theme.dart';
 import 'package:baby_sleep_tracker/features/sleep/data/preview_sleep_repository.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_ledger.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_repository.dart';
@@ -9,6 +12,9 @@ import 'package:baby_sleep_tracker/features/sleep/presentation/presentation_help
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:shared_preferences_platform_interface/types.dart';
 
 import 'support/fake_clock.dart';
 
@@ -26,6 +32,33 @@ Widget appForTest({PreviewSleepRepository? repository, FakeClock? clock}) =>
     );
 
 void main() {
+  setUp(() {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+  });
+
+  test('sleep chart marks exceed 3:1 non-text contrast on both themes', () {
+    double contrast(Color first, Color second) {
+      final a = first.computeLuminance();
+      final b = second.computeLuminance();
+      return (a > b ? a + .05 : b + .05) / (a > b ? b + .05 : a + .05);
+    }
+
+    expect(
+      contrast(
+        SleepPalette.daytimeChart,
+        SleepTheme.light().colorScheme.surfaceContainerHighest,
+      ),
+      greaterThanOrEqualTo(3),
+    );
+    expect(
+      contrast(
+        SleepPalette.sage,
+        SleepTheme.dark().colorScheme.surfaceContainerHighest,
+      ),
+      greaterThanOrEqualTo(3),
+    );
+  });
   testWidgets('Today, History and Trends are reachable from the main nav', (
     tester,
   ) async {
@@ -45,6 +78,146 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Start sleep'), findsOneWidget);
   });
+
+  testWidgets(
+    'Settings are reachable, but unimplemented family actions are disabled',
+    (tester) async {
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Settings and privacy'));
+      await tester.pumpAndSettle();
+      expect(find.text('Settings & privacy'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Invite a caregiver'), 200);
+      final invite = tester.widget<ListTile>(
+        find.widgetWithText(ListTile, 'Invite a caregiver'),
+      );
+      expect(invite.enabled, isFalse);
+      await tester.scrollUntilVisible(find.text('Share JSON'), 200);
+      expect(find.text('Share JSON'), findsOneWidget);
+      expect(find.text('Share CSV'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Delete household data'), 200);
+      final delete = tester.widget<ListTile>(
+        find.widgetWithText(ListTile, 'Delete household data'),
+      );
+      expect(delete.enabled, isFalse);
+    },
+  );
+
+  testWidgets('Trends distinguish zero logs from recorded sleep', (
+    tester,
+  ) async {
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(appForTest(repository: repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trends'));
+    await tester.pumpAndSettle();
+    expect(find.text('A little story starts here'), findsOneWidget);
+    expect(find.text('No entries'), findsOneWidget);
+
+    await repository.put(
+      SleepSession(
+        id: 'one',
+        startedAtUtc: DateTime.utc(2026, 10, 19, 8),
+        endedAtUtc: DateTime.utc(2026, 10, 19, 9),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('The last seven days'), findsOneWidget);
+    expect(find.text('1h 0m'), findsWidgets);
+    expect(
+      find.bySemanticsLabel(RegExp('day not yet complete')),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
+
+  testWidgets('Appearance changes to dark and can be restored to system', (
+    tester,
+  ) async {
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Settings and privacy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    await tester.tap(find.byTooltip('Settings and privacy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Follow my phone'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.system,
+    );
+  });
+
+  testWidgets('Rapid theme taps persist in the same order as the last choice', (
+    tester,
+  ) async {
+    final prefs = _SlowPreferences();
+    SharedPreferencesAsyncPlatform.instance = prefs;
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Settings and privacy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Light'));
+    await tester.pump();
+    await tester.tap(find.text('Dark'));
+    await tester.pump();
+    expect(prefs.startedWrites, 1, reason: 'Second write must be queued');
+    prefs.releaseFirst.complete();
+    await tester.pumpAndSettle();
+    expect(prefs.startedWrites, 2);
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+  });
+
+  testWidgets(
+    'Compact high-text-scale view retains accessible primary action',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+      });
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      final action = find.widgetWithText(FilledButton, 'Start sleep');
+      expect(action, findsOneWidget);
+      final rect = tester.getRect(action);
+      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(rect.bottom, lessThan(568 - 76));
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Trends'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Start and stop are a single tap and visible in History', (
     tester,
@@ -401,6 +574,60 @@ void main() {
     expect(repository.chosen, second);
   });
 
+  testWidgets('An older disputed nap never disables the current sleep action', (
+    tester,
+  ) async {
+    final disputed = SleepSession(
+      id: 'old-nap',
+      startedAtUtc: DateTime.utc(2026, 10, 18, 7),
+      endedAtUtc: DateTime.utc(2026, 10, 18, 8),
+    );
+    final conflict = SleepConflict(
+      sessionId: disputed.id,
+      heads: [
+        SleepOperation(
+          id: 'old-a',
+          actorId: 'one',
+          session: disputed,
+          recordedAtUtc: DateTime.utc(2026, 10, 18, 9),
+        ),
+        SleepOperation(
+          id: 'old-b',
+          actorId: 'two',
+          session: disputed.corrected(
+            startUtc: DateTime.utc(2026, 10, 18, 7, 5),
+            endUtc: DateTime.utc(2026, 10, 18, 8, 5),
+          ),
+          recordedAtUtc: DateTime.utc(2026, 10, 18, 9),
+        ),
+      ],
+      commonAncestor: null,
+    );
+    final active = SleepSession(
+      id: 'live-nap',
+      startedAtUtc: DateTime.utc(2026, 10, 19, 9, 30),
+      endedAtUtc: null,
+    );
+    final repository = _ConflictRepository(conflict, sessions: [active]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          clockProvider.overrideWithValue(
+            FakeClock(DateTime.utc(2026, 10, 19, 10)),
+          ),
+          sleepRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const BabySleepApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final action = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Wake up'),
+    );
+    expect(action.onPressed, isNotNull);
+    expect(find.textContaining('competing edit(s) preserved'), findsOneWidget);
+  });
+
   testWidgets('Invalid future correction is visible and cannot be saved', (
     tester,
   ) async {
@@ -510,20 +737,77 @@ void main() {
         matchesGoldenFile('goldens/today_${brightness.name}.png'),
       );
     });
+
+    testWidgets('$brightness Trends visual baseline', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.platformBrightnessTestValue = brightness;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearPlatformBrightnessTestValue();
+      });
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Trends'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/trends_${brightness.name}.png'),
+      );
+    });
+
+    testWidgets('$brightness Settings visual baseline', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.platformBrightnessTestValue = brightness;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearPlatformBrightnessTestValue();
+      });
+      await tester.pumpWidget(appForTest());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Settings and privacy'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/settings_${brightness.name}.png'),
+      );
+    });
+  }
+}
+
+base class _SlowPreferences extends InMemorySharedPreferencesAsync {
+  _SlowPreferences() : super.empty();
+
+  final Completer<void> releaseFirst = Completer<void>();
+  int startedWrites = 0;
+
+  @override
+  Future<bool> setString(
+    String key,
+    String value,
+    SharedPreferencesOptions options,
+  ) async {
+    startedWrites++;
+    if (startedWrites == 1) await releaseFirst.future;
+    return super.setString(key, value, options);
   }
 }
 
 final class _ConflictRepository implements SleepRepository {
-  _ConflictRepository(this.conflict);
+  _ConflictRepository(this.conflict, {this.sessions = const []});
 
   final SleepConflict conflict;
+  final List<SleepSession> sessions;
   SleepSession? chosen;
 
   @override
-  Stream<List<SleepSession>> watchSessions() => Stream.value(const []);
+  Stream<List<SleepSession>> watchSessions() => Stream.value(sessions);
 
   @override
-  Future<List<SleepSession>> readSessions() async => const [];
+  Future<List<SleepSession>> readSessions() async => sessions;
 
   @override
   Stream<List<SleepConflict>> watchConflicts() => Stream.value([conflict]);

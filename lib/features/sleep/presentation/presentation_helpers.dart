@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/emulator_bootstrap.dart';
 import '../../../app/family_bootstrap.dart';
 import '../../../app/providers.dart';
 import '../../../app/theme.dart';
+import '../../../l10n/app_localizations.dart';
 import 'storage_copy.dart';
 
 StorageEnvironment get appStorageEnvironment {
@@ -47,44 +49,55 @@ class ScreenIntro extends StatelessWidget {
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          Container(
-            width: 45,
-            height: 45,
-            decoration: BoxDecoration(
-              color: SleepPalette.lavender.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(15),
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.textScalerOf(context).scale(16) > 24;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 45,
+              height: 45,
+              decoration: BoxDecoration(
+                color: SleepPalette.lavender.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                Icons.bedtime_rounded,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 24,
+              ),
             ),
-            child: Icon(
-              Icons.bedtime_rounded,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 24,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'little rest',
+                style: Theme.of(context).textTheme.titleLarge,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'little rest',
-              style: Theme.of(context).textTheme.titleLarge,
+            if (!compact) const _PreviewBadge(),
+            IconButton(
+              tooltip: AppLocalizations.of(context).settingsTooltip,
+              onPressed: () => context.push('/settings'),
+              icon: const Icon(Icons.settings_outlined),
             ),
-          ),
-          const _PreviewBadge(),
-        ],
-      ),
-      const SizedBox(height: 22),
-      Text(title, style: Theme.of(context).textTheme.headlineLarge),
-      const SizedBox(height: 8),
-      Text(
-        subtitle,
-        style: Theme.of(context).textTheme.bodyLarge
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
-    ],
-  );
+          ],
+        ),
+        if (compact) ...[const SizedBox(height: 8), const _PreviewBadge()],
+        const SizedBox(height: 14),
+        Text(title, style: Theme.of(context).textTheme.headlineLarge),
+        const SizedBox(height: 8),
+        Text(
+          subtitle,
+          style: Theme.of(context).textTheme.bodyLarge
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
 }
 
 class PreviewWarning extends ConsumerWidget {

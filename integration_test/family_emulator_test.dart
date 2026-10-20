@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:baby_sleep_tracker/app/family_bootstrap.dart';
 import 'package:baby_sleep_tracker/features/family/data/family_client.dart';
 import 'package:baby_sleep_tracker/features/family/presentation/family_gate.dart';
@@ -14,6 +17,42 @@ import 'package:integration_test/integration_test.dart';
 /// Never execute with a real Firebase project or personal sleep records.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  // This endpoint exists only in Firebase's local Auth Emulator. Following a
+  // real verification code keeps the integration test aligned with production
+  // invitation policy, without weakening email verification in the app.
+  Future<void> verifyEmulatedEmail(
+    FirebaseAuth auth,
+    String email,
+    String host,
+  ) async {
+    await auth.currentUser!.sendEmailVerification();
+    final client = HttpClient();
+    try {
+      final url = Uri.parse(
+        'http://$host:9099/emulator/v1/projects/demo-little-rest/oobCodes',
+      );
+      final response = await (await client.getUrl(url)).close();
+      expect(response.statusCode, HttpStatus.ok);
+      final body = jsonDecode(
+        await response.transform(utf8.decoder).join(),
+      ) as Map<String, dynamic>;
+      final codes = (body['oobCodes'] as List).cast<Map<String, dynamic>>();
+      final code =
+          codes.lastWhere(
+                (entry) =>
+                    entry['email'] == email &&
+                    entry['requestType'] == 'VERIFY_EMAIL',
+              )['oobCode']
+              as String;
+      await auth.applyActionCode(code);
+      await auth.currentUser!.reload();
+      await auth.currentUser!.getIdToken(true);
+      expect(auth.currentUser!.emailVerified, isTrue);
+    } finally {
+      client.close(force: true);
+    }
+  }
 
   testWidgets('persistent family UI: offline write, relaunch, second caregiver', (
     tester,
@@ -36,23 +75,31 @@ void main() {
           throw TestFailure('Create family failed: $errors');
         }
       }
-      final visibleText = find
-          .byType(Text)
-          .evaluate()
-          .map((element) => (element.widget as Text).data ?? '')
+      // Preserve the user-visible error when a Firebase callable fails. In an
+      // instrumented device run a bare timeout otherwise hides the actual
+      // reason (e.g. missing Auth state, denied Rules, unreachable Functions).
+      final visible = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((widget) => widget.data ?? widget.textSpan?.toPlainText() ?? '')
           .where((value) => value.isNotEmpty)
-          .take(30)
-          .toList();
+          .take(35)
+          .join(' | ');
+      final frameworkError = tester.takeException();
       throw TestFailure(
-        'Timed out: $purpose; widgets=$visibleText; '
-        'busy=${find.byType(LinearProgressIndicator).evaluate().isNotEmpty}',
+        'Timed out: $purpose. Visible UI: $visible. '
+        'Flutter error: ${frameworkError ?? 'none'}',
       );
     }
 
     await application.main();
     await until(find.text('Create family'), 'Auth emulator onboarding');
     await tester.enterText(find.byType(TextField).first, 'Synthetic Infant');
+    // Flush the entered name and reveal the action before tapping; stale
+    // input focus or a virtual keyboard can swallow the first real-device tap.
+    await tester.pump();
+    await tester.ensureVisible(find.text('Create family'));
     await tester.tap(find.text('Create family'));
+    await tester.pump();
     await until(find.text('Start sleep'), 'family Today');
     expect(find.text('FAMILY DEV'), findsOneWidget);
 
@@ -95,6 +142,15 @@ void main() {
     await until(find.text('Wake up'), 'restored local sleep');
 
     await db.enableNetwork();
+    // A server-sourced get can return documents that still carry locally
+    // pending writes. The offline operation is durable only after Firestore
+    // confirms the complete queue was sent and acknowledged.
+    await db.waitForPendingWrites().timeout(
+      const Duration(seconds: 60),
+      onTimeout: () => throw TestFailure(
+        'Firestore did not acknowledge the queued offline sleep operation',
+      ),
+    );
     final confirmed = await operations.get(
       const GetOptions(source: Source.server),
     );
@@ -102,13 +158,20 @@ void main() {
     expect(confirmed.docs.single.id, startId);
     expect(confirmed.docs.single.metadata.hasPendingWrites, isFalse);
 
+    const host = String.fromEnvironment(
+      'FIREBASE_EMULATOR_HOST',
+      defaultValue: '10.0.2.2',
+    );
+    expect(host, isNotEmpty);
     final nonce = DateTime.now().microsecondsSinceEpoch;
+    final ownerEmail = 'owner-$nonce@example.test';
     await auth.currentUser!.linkWithCredential(
       EmailAuthProvider.credential(
-        email: 'owner-$nonce@example.test',
+        email: ownerEmail,
         password: 'test-password-123',
       ),
     );
+    await verifyEmulatedEmail(auth, ownerEmail, host);
     final owner = FamilyClient(auth: auth, firestore: db, functions: functions);
     final code = (await owner.createInvite()).code;
 
@@ -125,17 +188,15 @@ void main() {
         app: secondApp,
         region: 'europe-west1',
       );
-      const host = String.fromEnvironment(
-        'FIREBASE_EMULATOR_HOST',
-        defaultValue: '10.0.2.2',
-      );
       await bAuth.useAuthEmulator(host, 9099);
       bDb.useFirestoreEmulator(host, 8080);
       bFunctions.useFunctionsEmulator(host, 5001);
+      final caregiverEmail = 'caregiver-$nonce@example.test';
       await bAuth.createUserWithEmailAndPassword(
-        email: 'caregiver-$nonce@example.test',
+        email: caregiverEmail,
         password: 'test-password-123',
       );
+      await verifyEmulatedEmail(bAuth, caregiverEmail, host);
       final bUid = bAuth.currentUser!.uid;
       expect(bUid, isNot(uid));
       await bFunctions.httpsCallable('redeemInvite').call<Map<String, dynamic>>(

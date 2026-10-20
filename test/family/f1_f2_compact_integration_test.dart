@@ -5,10 +5,16 @@ import 'package:baby_sleep_tracker/features/sleep/data/preview_sleep_repository.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+  });
   testWidgets(
-    'F1 compact sleep action stays reachable with F2 family navigation',
+    'F1 compact sleep action stays reachable after F2 family integration',
     (tester) async {
       tester.view.physicalSize = const Size(320, 568);
       tester.view.devicePixelRatio = 1;
@@ -19,8 +25,9 @@ void main() {
       final repository = PreviewSleepRepository();
       addTearDown(repository.dispose);
 
-      // This exercises the four-tab family shell without contacting Firebase.
-      // The sleep action is the F1 layout and the extra Family tab comes from F2.
+      // The Family management route is reached from Settings, not a fourth
+      // bottom destination. This verifies the compact three-tab navigation
+      // with F2 family context, without contacting Firebase.
       await tester.pumpWidget(
         ProviderScope(
           overrides: [sleepRepositoryProvider.overrideWithValue(repository)],
@@ -31,7 +38,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationDestination), findsNWidgets(4));
+      expect(find.byType(NavigationDestination), findsNWidgets(3));
       final primary = find.widgetWithText(FilledButton, 'Start sleep');
       expect(primary, findsOneWidget);
       final navTop = tester.getTopLeft(find.byType(NavigationBar)).dy;

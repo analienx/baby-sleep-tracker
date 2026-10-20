@@ -5,6 +5,8 @@ abstract final class SleepPalette {
   static const twilight = Color(0xFF27324D);
   static const lavender = Color(0xFFC6B9F0);
   static const sage = Color(0xFFABCDBA);
+  // Darker sage for readable non-text chart marks on cream/light surfaces.
+  static const daytimeChart = Color(0xFF44745F);
   static const cream = Color(0xFFF8F6F2);
   static const night = Color(0xFF111622);
 }
@@ -22,6 +24,9 @@ abstract final class SleepTheme {
     );
     return ThemeData(
       useMaterial3: true,
+      // Avoid GPU-fragment splash shader dependencies on low-end phones and
+      // in headless widget tests; the standard ripple remains responsive.
+      splashFactory: InkRipple.splashFactory,
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: dark ? SleepPalette.night : SleepPalette.cream,

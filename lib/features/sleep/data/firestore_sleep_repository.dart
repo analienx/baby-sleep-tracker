@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/sleep_ledger.dart';
+import '../domain/sleep_archive.dart';
 import '../domain/sleep_repository.dart';
 import '../domain/sleep_session.dart';
 
@@ -12,7 +13,8 @@ import '../domain/sleep_session.dart';
 /// against a production Firebase project.
 /// The authoritative record is the immutable operation collection: clients
 /// create unique documents instead of updating the same session document.
-final class FirestoreSleepRepository implements SleepRepository {
+final class FirestoreSleepRepository
+    implements SleepRepository, SleepArchiveSource {
   FirestoreSleepRepository({
     required FirebaseFirestore firestore,
     required String syntheticUserId,
@@ -77,8 +79,12 @@ final class FirestoreSleepRepository implements SleepRepository {
   bool _fromCache = true;
   bool _hasPendingWrites = false;
   int _quarantineCount = 0;
+  List<String> _invalidDocumentIds = const [];
 
   void _updateStatus() {
+    // Firestore write Futures may settle long after widget disposal (especially
+    // following reconnect). Never publish into controllers that are closed.
+    if (_disposed) return;
     _status = _listenerError != null
         ? const SleepStorageStatus(
             StoragePhase.failed,
@@ -135,6 +141,7 @@ final class FirestoreSleepRepository implements SleepRepository {
       // retain the immutable audit record for forensic repair.
       final projection = SleepLedger.project(operations);
       _lastOperations = operations;
+      _invalidDocumentIds = invalidDocumentIds;
       _projection = projection;
       _quarantineCount =
           invalidDocumentIds.length + projection.quarantinedSessionIds.length;
@@ -161,6 +168,7 @@ final class FirestoreSleepRepository implements SleepRepository {
   }
 
   void _onWriteError(Object error, StackTrace stack) {
+    if (_disposed) return;
     _lastWriteError = error;
     _updateStatus();
   }
@@ -269,6 +277,30 @@ final class FirestoreSleepRepository implements SleepRepository {
   }
 
   @override
+  Future<SleepArchive> readArchive() async {
+    await _firstSnapshot.future;
+    if (!_hasSnapshot) throw StateError('No sleep cache is available.');
+    // Copy all fields from the same immutable listener revision, before any
+    // later listener event can mutate the projection.
+    return SleepArchive(
+      sessions: List.unmodifiable(_projection.sessions),
+      operations: List.unmodifiable(_lastOperations),
+      conflicts: List.unmodifiable(_projection.conflicts),
+      quarantinedSessionIds: List.unmodifiable(
+        _projection.quarantinedSessionIds,
+      ),
+      invalidOperationIds: List.unmodifiable(_invalidDocumentIds),
+      hasJournal: true,
+      cloudConfirmed:
+          !_fromCache &&
+          !_hasPendingWrites &&
+          _listenerError == null &&
+          _lastWriteError == null &&
+          _quarantineCount == 0,
+    );
+  }
+
+  @override
   Future<void> put(SleepSession session) => _append(session, deleted: false);
 
   @override
@@ -362,6 +394,7 @@ final class FirestoreSleepRepository implements SleepRepository {
           .set(_encode(operation))
           .then(
             (_) {
+              if (_disposed) return;
               // Successful server acknowledgement of a later command may
               // clear a previous rejected write. Cache metadata still controls
               // whether an operation can be called synced.
@@ -369,6 +402,7 @@ final class FirestoreSleepRepository implements SleepRepository {
               _updateStatus();
             },
             onError: (Object error, StackTrace stack) {
+              if (_disposed) return;
               final pending = _localWrites.remove(id);
               if (pending != null && !pending.isCompleted) {
                 pending.completeError(error, stack);

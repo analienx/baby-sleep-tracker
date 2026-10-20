@@ -40,11 +40,12 @@ test('family rules block strangers, privilege escalation, updates and revocation
     await assertFails(carer.doc('families/secure/members/carer').update({role:'owner'}));
     await assertFails(owner.doc('families/secure/members/new').set({role:'owner',uid:'new'}));
     await assertFails(owner.doc('familyInvites/guess').get());
+    await assertFails(owner.doc('accountDeletions/owner').get());
+    await assertFails(owner.doc('accountDeletions/owner').set({requestedAt:start}));
     await assertFails(owner.doc('familyRateLimits/counter').get());
     await assertFails(owner.doc('familyRateLimits/counter').set({count:0}));
     await assertSucceeds(carer.doc('families/secure/babies/baby/operations/pending-parent')
       .set({...op,parentIds:['pending-offline-parent']}));
-
     await assertFails(carer.doc(path).update({deleted:true}));
     await assertFails(carer.doc(path).delete());
     await assertFails(carer.doc('families/secure/babies/baby/operations/impersonate')
@@ -69,6 +70,22 @@ test('family rules block strangers, privilege escalation, updates and revocation
       .set({...op,parentIds:Array.from({length:21},(_,i)=>'parent'+i)}));
     await assertFails(carer.doc('families/secure/babies/baby/operations/tombstone')
       .set({...op,deleted:true,parentIds:[]}));
+    // Account deletion fencing precedes removal of Auth credentials. A still
+    // valid identity token cannot submit another immutable operation.
+    await env.withSecurityRulesDisabled(async ctx=>{
+      await ctx.firestore().doc('accountDeletions/carer').set({requestedAt:start});
+    });
+    await assertFails(carer.doc('users/carer').get());
+    await assertFails(carer.doc(path).get());
+    await assertFails(carer.doc('families/secure/babies/baby/operations/deleting-user').set(op));
+    // Deletion is a server-only state transition. Once marked, no stale
+    // membership document may permit any more reads or writes.
+    await env.withSecurityRulesDisabled(async ctx=>{
+      await ctx.firestore().doc('families/secure').update({deleting:true});
+    });
+    await assertFails(owner.doc(path).get());
+    await assertFails(carer.doc('families/secure/babies/baby/operations/during-delete').set(op));
+    await assertFails(carer.doc('families/secure/members/owner').get());
     // Simulate server-side revocation; no cached client retains cloud access.
     await env.withSecurityRulesDisabled(async ctx=>{
       await ctx.firestore().doc('families/secure/members/carer').delete();

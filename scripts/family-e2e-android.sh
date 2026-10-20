@@ -16,6 +16,7 @@ adb shell am force-stop com.analienx.baby_sleep_tracker
 if ! flutter test integration_test/family_emulator_test.dart \
   -d emulator-5554 --no-pub \
   --dart-define=USE_FAMILY_EMULATOR=true \
+  --dart-define=FIREBASE_EMULATOR_HOST="${DEVICE_HOST:-10.0.2.2}" \
   -r expanded; then
   adb exec-out screencap -p > e2e-evidence/family-e2e-failure.png || true
   adb logcat -d -t 400 > e2e-evidence/android-logcat-failure.txt || true

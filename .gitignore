@@ -54,3 +54,4 @@ app.*.map.json
 /private/
 *.local.json
 /functions/.env*
+/functions/.secret.local

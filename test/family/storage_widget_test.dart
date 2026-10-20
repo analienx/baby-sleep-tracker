@@ -2,6 +2,7 @@ import 'package:baby_sleep_tracker/app/providers.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_repository.dart';
 import 'package:baby_sleep_tracker/features/sleep/presentation/presentation_helpers.dart';
 import 'package:baby_sleep_tracker/features/sleep/presentation/storage_copy.dart';
+import 'package:baby_sleep_tracker/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ Widget familyStatusView(
     sleepStorageProvider.overrideWith((ref) => Stream.value(status)),
   ],
   child: const MaterialApp(
+    localizationsDelegates: [AppLocalizations.delegate],
     home: Scaffold(
       body: Column(
         children: [

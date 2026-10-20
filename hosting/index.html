@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Delete account · Little Rest</title>
+  <style>
+    :root {font: 17px/1.5 system-ui,-apple-system,sans-serif;color-scheme:light dark}
+    body {margin:0;padding:30px 16px;background:light-dark(#f7f6fb,#191b2b);color:light-dark(#212437,#f6f2ff)}
+    main {max-width:540px;margin:7vh auto;padding:30px;border:1px solid light-dark(#e4dff0,#45445a);border-radius:24px;background:light-dark(#fff,#25273a)}
+    .symbol {font-size:32px}
+    h1 {line-height:1.1;letter-spacing:-.03em}
+    p,li {color:light-dark(#505268,#ddd8ea)}
+    label {display:block;margin:18px 0 6px;font-weight:600}
+    input[type=email],input[type=password] {box-sizing:border-box;width:100%;padding:13px;font:inherit;border:1px solid #868397;border-radius:12px;background:transparent;color:inherit}
+    .choice {display:flex;align-items:flex-start;gap:10px;margin:18px 0;font-weight:400}
+    button {width:100%;padding:14px;border:0;border-radius:14px;background:#bcb4f2;color:#151629;font:inherit;font-weight:700;cursor:pointer}
+    button:disabled {opacity:.6;cursor:wait}
+    button.secondary {background:transparent;color:inherit;border:1px solid #868397;margin-top:10px}
+    #result {min-height:2.5em;white-space:pre-wrap}
+    a {color:inherit}
+    :focus-visible {outline:3px solid #827be5;outline-offset:3px}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="symbol" aria-hidden="true">☾</div>
+    <h1>Delete your Little Rest account</h1>
+    <p>You can request permanent account deletion here even if you no longer have the mobile app.</p>
+    <ul>
+      <li>We remove your Firebase sign-in credentials and private caregiver profile.</li>
+      <li>If you own the household, deleting your account also deletes its sleep journal, edit history and invitations for every caregiver.</li>
+      <li>If you are a caregiver, existing shared sleep entries remain with a pseudonymous editor identifier; previously downloaded offline copies cannot be remotely wiped.</li>
+    </ul>
+    <form id="deletionForm">
+      <label for="email">Account email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <label class="choice"><input id="owned" type="checkbox"> If I own a household, I understand this permanently deletes the entire shared journal.</label>
+      <label class="choice"><input id="confirm" type="checkbox" required> I understand that deletion is irreversible.</label>
+      <button id="submit" type="submit" disabled>Loading secure deletion…</button>
+      <button id="resetPassword" class="secondary" type="button" disabled>Forgot password? Email me a reset link</button>
+    </form>
+    <p id="result" role="status" aria-live="polite"></p>
+    <p><small>Export anything you need from the app first. If you no longer have the app, reset your password using the button above and return here to submit deletion.</small></p>
+  </main>
+  <script type="module" src="/deletion.js"></script>
+</body>
+</html>
