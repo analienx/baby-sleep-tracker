@@ -64,6 +64,7 @@ final class SleepLedgerResult {
     required this.sessions,
     required this.conflicts,
     this.quarantinedSessionIds = const [],
+    this.quarantinedOperationIds = const [],
   });
 
   /// Last uncontested state if two writers collide; never arbitrarily LWW.
@@ -73,6 +74,10 @@ final class SleepLedgerResult {
   /// Invalid or incomplete ancestry is preserved in storage but excluded from
   /// the timeline until all referenced operations are available and valid.
   final List<String> quarantinedSessionIds;
+
+  /// Immutable journal nodes whose ancestry is incomplete/cyclic. Consumers
+  /// must not count these nodes as valid heads when composing new revisions.
+  final List<String> quarantinedOperationIds;
   bool get hasConflicts => conflicts.isNotEmpty;
 }
 
@@ -98,6 +103,7 @@ final class SleepLedger {
     final sessions = <SleepSession>[];
     final conflicts = <SleepConflict>[];
     final quarantined = <String>[];
+    final quarantinedOperations = <String>[];
     for (final entry in groups.entries) {
       // Admit only the ancestry-closed portion of each immutable DAG. A
       // malicious or temporarily orphaned branch MUST NOT make an earlier
@@ -127,7 +133,12 @@ final class SleepLedger {
       }
       // Leftovers have missing/cross-session ancestors, cyclic ancestry, or
       // depend on one of those branches. Keep them in the journal for review.
-      if (accepted.length != entry.value.length) quarantined.add(entry.key);
+      if (accepted.length != entry.value.length) {
+        quarantined.add(entry.key);
+        quarantinedOperations.addAll(
+          entry.value.keys.where((id) => !accepted.containsKey(id)),
+        );
+      }
       if (accepted.isEmpty) continue;
       final projected = _projectFamily(entry.key, accepted);
       sessions.addAll(projected.sessions);
@@ -142,6 +153,7 @@ final class SleepLedger {
       sessions: List.unmodifiable(sessions),
       conflicts: List.unmodifiable(conflicts),
       quarantinedSessionIds: List.unmodifiable(quarantined..sort()),
+      quarantinedOperationIds: List.unmodifiable(quarantinedOperations..sort()),
     );
   }
 

@@ -182,7 +182,13 @@ void main() {
         morning.add(const Duration(minutes: 35)),
       );
       expect(result.quarantinedSessionIds, ['sleep-1']);
+      expect(result.quarantinedOperationIds, ['depends-on-orphan', 'orphan']);
       expect(result.hasConflicts, isFalse);
+      final remaining = [
+        for (final operation in order)
+          if (!result.quarantinedOperationIds.contains(operation.id)) operation,
+      ];
+      expect(remaining.map((op) => op.id).toSet(), {'original', 'settled'});
     }
     // The offline ancestor eventually arrives: the branch now becomes a
     // visible conflict rather than getting ignored or silently winning.
@@ -200,6 +206,7 @@ void main() {
     ]);
     expect(recovered.sessions.single.id, 'sleep-1');
     expect(recovered.quarantinedSessionIds, isEmpty);
+    expect(recovered.quarantinedOperationIds, isEmpty);
   });
 
   test('cycles and cross-session references do not poison existing record', () {
