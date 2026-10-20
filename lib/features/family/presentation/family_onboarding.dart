@@ -11,7 +11,8 @@ final class FamilyOnboarding extends StatefulWidget {
 }
 
 final class _FamilyOnboardingState extends State<FamilyOnboarding> {
-  final _baby = TextEditingController(text: 'Vincent');
+  // Never prefill a real child's name in a public demo or shared device.
+  final _baby = TextEditingController();
   final _code = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();

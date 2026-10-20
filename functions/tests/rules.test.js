@@ -16,7 +16,7 @@ test('family rules block strangers, privilege escalation, updates and revocation
     await env.withSecurityRulesDisabled(async context=>{
       const db=context.firestore();
       await db.doc('families/secure').set({ownerId:'owner'});
-      await db.doc('families/secure/babies/baby').set({name:'Vincent'});
+      await db.doc('families/secure/babies/baby').set({name:'Demo Baby'});
       await db.doc('families/secure/members/owner').set({uid:'owner',role:'owner'});
       await db.doc('families/secure/members/carer').set({uid:'carer',role:'caregiver'});
       await db.doc('families/other').set({ownerId:'outsider'});

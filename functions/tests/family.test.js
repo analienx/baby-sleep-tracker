@@ -15,7 +15,7 @@ test('anonymous users cannot redeem or issue invitations',()=>{
   assert.equal(durableAuth(null),false);
 });
 test('baby name limits and invite lifetime',()=>{
-  assert.equal(nonemptyName(' Vincent '),'Vincent');
+  assert.equal(nonemptyName(' Demo Baby '),'Demo Baby');
   assert.throws(()=>nonemptyName(' '));
   assert.throws(()=>nonemptyName('x'.repeat(51)));
   assert.equal(ttlMs,86400000);

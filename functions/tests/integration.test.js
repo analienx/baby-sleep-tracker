@@ -25,9 +25,9 @@ test('create, invite, redeem, revoke via real Auth + Functions emulators', {
     connectFunctionsEmulator(f2,'127.0.0.1',5001);
     await createUserWithEmailAndPassword(ownerAuth,'owner'+suffix+'@example.test','password123');
     await createUserWithEmailAndPassword(joinerAuth,'joiner'+suffix+'@example.test','password123');
-    const created=(await httpsCallable(f1,'createFamily')({babyName:'Vincent'})).data;
+    const created=(await httpsCallable(f1,'createFamily')({babyName:'Demo Baby'})).data;
     assert.ok(created.familyId&&created.babyId);
-    const again=(await httpsCallable(f1,'createFamily')({babyName:'Vincent'})).data;
+    const again=(await httpsCallable(f1,'createFamily')({babyName:'Demo Baby'})).data;
     assert.deepEqual(again,created,'retries preserve one household');
     const issued=(await httpsCallable(f1,'issueInvite')({})).data;
     assert.equal(issued.code.length,43);
