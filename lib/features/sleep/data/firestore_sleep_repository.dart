@@ -82,6 +82,9 @@ final class FirestoreSleepRepository
   List<String> _invalidDocumentIds = const [];
 
   void _updateStatus() {
+    // Firestore write Futures may settle long after widget disposal (especially
+    // following reconnect). Never publish into controllers that are closed.
+    if (_disposed) return;
     _status = _listenerError != null
         ? const SleepStorageStatus(
             StoragePhase.failed,
@@ -165,6 +168,7 @@ final class FirestoreSleepRepository
   }
 
   void _onWriteError(Object error, StackTrace stack) {
+    if (_disposed) return;
     _lastWriteError = error;
     _updateStatus();
   }
@@ -390,6 +394,7 @@ final class FirestoreSleepRepository
           .set(_encode(operation))
           .then(
             (_) {
+              if (_disposed) return;
               // Successful server acknowledgement of a later command may
               // clear a previous rejected write. Cache metadata still controls
               // whether an operation can be called synced.
@@ -397,6 +402,7 @@ final class FirestoreSleepRepository
               _updateStatus();
             },
             onError: (Object error, StackTrace stack) {
+              if (_disposed) return;
               final pending = _localWrites.remove(id);
               if (pending != null && !pending.isCompleted) {
                 pending.completeError(error, stack);
