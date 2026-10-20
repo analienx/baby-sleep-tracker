@@ -109,13 +109,23 @@ final class _SignedOutScreenState extends State<_SignedOutScreen> {
 
   Future<void> _act(Future<void> Function() work) async {
     if (busy) return;
-    setState(() {busy = true; error = null;});
+    setState(() {
+      busy = true;
+      error = null;
+    });
     try {
       await work();
     } on FirebaseAuthException catch (exception) {
-      if (mounted) setState(() => error = 'Could not sign in: ${exception.code}.');
+      if (mounted) {
+        setState(() => error = 'Could not sign in: ${exception.code}.');
+      }
     } catch (_) {
-      if (mounted) setState(() => error = 'Could not open a private account. Check your connection.');
+      if (mounted) {
+        setState(
+          () => error =
+              'Could not open a private account. Check your connection.',
+        );
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -132,11 +142,15 @@ final class _SignedOutScreenState extends State<_SignedOutScreen> {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                const Text('Your little rest, safely saved',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                const Text(
+                  'Your little rest, safely saved',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 12),
-                const Text('Sign in to restore your previously synced sleeps, '
-                    'or start a new private account. Initial sign-in needs internet.'),
+                const Text(
+                  'Sign in to restore your previously synced sleeps, '
+                  'or start a new private account. Initial sign-in needs internet.',
+                ),
                 const SizedBox(height: 24),
                 TextField(
                   controller: email,
@@ -153,26 +167,34 @@ final class _SignedOutScreenState extends State<_SignedOutScreen> {
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: busy ? null : () => _act(
-                    () async {await widget.client.auth.signInWithEmailAndPassword(
-                      email: email.text.trim(), password: password.text,
-                    );},
-                  ),
+                  onPressed: busy
+                      ? null
+                      : () => _act(() async {
+                          await widget.client.auth.signInWithEmailAndPassword(
+                            email: email.text.trim(),
+                            password: password.text,
+                          );
+                        }),
                   child: const Text('Restore my account'),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: busy ? null : () => _act(
-                    () async {await widget.client.auth.signInAnonymously();},
-                  ),
+                  onPressed: busy
+                      ? null
+                      : () => _act(() async {
+                          await widget.client.auth.signInAnonymously();
+                        }),
                   child: const Text('Start a new private account'),
                 ),
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: Text(error!, style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    )),
+                    child: Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ),
               ],
             ),

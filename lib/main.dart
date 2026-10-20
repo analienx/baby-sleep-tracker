@@ -33,19 +33,23 @@ Future<void> main() async {
       final personalClient = await connectPersonalCloud();
       runApp(PersonalGate(client: personalClient));
     } catch (_) {
-      runApp(const MaterialApp(
-        home: Scaffold(
-          body: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Private cloud could not connect. No sleep data was recorded. '
-                    'Please check your connection and staging Firebase configuration.'),
+      runApp(
+        const MaterialApp(
+          home: Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Private cloud could not connect. No sleep data was recorded. '
+                    'Please check your connection and staging Firebase configuration.',
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      ));
+      );
     }
     return;
   }

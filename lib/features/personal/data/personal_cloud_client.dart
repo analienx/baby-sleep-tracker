@@ -17,7 +17,9 @@ final class PersonalCloudClient {
   Future<void> linkEmailPassword(String email, String password) async {
     final user = auth.currentUser;
     if (user == null || !user.isAnonymous) {
-      throw StateError('This account is already protected, or you are signed out.');
+      throw StateError(
+        'This account is already protected, or you are signed out.',
+      );
     }
     if (password.length < 12) {
       throw StateError('Use a password of at least 12 characters.');
@@ -57,16 +59,22 @@ final class PersonalCloudClient {
       try {
         final cached = await docs.get(const GetOptions(source: Source.cache));
         if (cached.docs.isNotEmpty || cached.metadata.hasPendingWrites) {
-          throw StateError('This device has sleep records. Protect this account first; switching would orphan them.');
+          throw StateError(
+            'This device has sleep records. Protect this account first; switching would orphan them.',
+          );
         }
         final confirmed = await docs.get(
           const GetOptions(source: Source.server),
         );
         if (confirmed.docs.isNotEmpty) {
-          throw StateError('This account already has cloud sleep records. Protect it instead of switching.');
+          throw StateError(
+            'This account already has cloud sleep records. Protect it instead of switching.',
+          );
         }
       } on FirebaseException {
-        throw StateError('Reconnect to verify the empty account before switching identities.');
+        throw StateError(
+          'Reconnect to verify the empty account before switching identities.',
+        );
       }
     }
     await auth.signInWithEmailAndPassword(
@@ -103,9 +111,9 @@ final class PersonalCloudClient {
 
     final path = operations(user.uid);
     while (true) {
-      final page = await path.limit(200).get(
-        const GetOptions(source: Source.server),
-      );
+      final page = await path
+          .limit(200)
+          .get(const GetOptions(source: Source.server));
       if (page.docs.isEmpty) break;
       final batch = firestore.batch();
       for (final doc in page.docs) {
@@ -113,11 +121,13 @@ final class PersonalCloudClient {
       }
       await batch.commit();
     }
-    final remaining = await path.limit(1).get(
-      const GetOptions(source: Source.server),
-    );
+    final remaining = await path
+        .limit(1)
+        .get(const GetOptions(source: Source.server));
     if (remaining.docs.isNotEmpty) {
-      throw StateError('Cloud erasure could not be verified. Try again online.');
+      throw StateError(
+        'Cloud erasure could not be verified. Try again online.',
+      );
     }
 
     await user.delete();

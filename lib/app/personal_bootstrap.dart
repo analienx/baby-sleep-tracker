@@ -18,7 +18,9 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
   if (usePersonalStaging == usePersonalEmulator ||
       kReleaseMode ||
       (!Platform.isAndroid && !Platform.isIOS)) {
-    throw StateError('Personal cloud is only available in an explicit mobile debug build.');
+    throw StateError(
+      'Personal cloud is only available in an explicit mobile debug build.',
+    );
   }
 
   final app = await Firebase.initializeApp(

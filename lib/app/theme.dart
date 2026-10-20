@@ -62,7 +62,9 @@ abstract final class SleepTheme {
       useMaterial3: true,
       // An explicit Android font avoids OEM/phone theme handwriting fonts
       // overriding the app's readability, especially on light surfaces.
-      fontFamily: defaultTargetPlatform == TargetPlatform.android ? 'Roboto' : null,
+      fontFamily: defaultTargetPlatform == TargetPlatform.android
+          ? 'Roboto'
+          : null,
       splashFactory: InkRipple.splashFactory,
       brightness: brightness,
       colorScheme: scheme,

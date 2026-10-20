@@ -104,7 +104,8 @@ final class _BabySleepAppState extends State<BabySleepApp> {
       if (widget.personalClient != null)
         GoRoute(
           path: '/account',
-          builder: (_, _) => PersonalAccountScreen(client: widget.personalClient!),
+          builder: (_, _) =>
+              PersonalAccountScreen(client: widget.personalClient!),
         ),
       if (widget.familyClient != null && widget.family != null)
         GoRoute(

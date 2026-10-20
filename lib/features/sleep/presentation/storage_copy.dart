@@ -38,8 +38,7 @@ String storageMessage(
       StorageEnvironment.familyEmulator =>
         'Synced with local family emulator. Synthetic data only.',
       StorageEnvironment.familyCloud => 'Synced with your family cloud.',
-      StorageEnvironment.personalCloud =>
-        'Synced privately to Firebase. Protect your account with email before changing phones.',
+      StorageEnvironment.personalCloud => 'Synced privately to Firebase. Protect your account with email before changing phones.',
       StorageEnvironment.personalEmulator =>
         'Synced with private-account test emulator. Synthetic data only.',
       StorageEnvironment.volatilePreview =>

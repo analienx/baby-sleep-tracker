@@ -66,13 +66,29 @@ void main() {
       return (l1 > l2 ? l1 + 0.05 : l2 + 0.05) /
           (l1 > l2 ? l2 + 0.05 : l1 + 0.05);
     }
+
     final scheme = SleepTheme.light().colorScheme;
-    expect(contrast(scheme.primary, scheme.onPrimary), greaterThanOrEqualTo(4.5));
-    expect(contrast(scheme.secondary, scheme.onSecondary), greaterThanOrEqualTo(4.5));
+    expect(
+      contrast(scheme.primary, scheme.onPrimary),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrast(scheme.secondary, scheme.onSecondary),
+      greaterThanOrEqualTo(4.5),
+    );
     expect(contrast(scheme.onSurface, scheme.surface), greaterThanOrEqualTo(7));
-    expect(contrast(scheme.onSurfaceVariant, scheme.surface), greaterThanOrEqualTo(4.5));
-    expect(contrast(scheme.onPrimaryContainer, scheme.primaryContainer), greaterThanOrEqualTo(4.5));
-    expect(contrast(scheme.onSecondaryContainer, scheme.secondaryContainer), greaterThanOrEqualTo(4.5));
+    expect(
+      contrast(scheme.onSurfaceVariant, scheme.surface),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrast(scheme.onPrimaryContainer, scheme.primaryContainer),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrast(scheme.onSecondaryContainer, scheme.secondaryContainer),
+      greaterThanOrEqualTo(4.5),
+    );
   });
 
   testWidgets('Today, History and Trends are reachable from the main nav', (

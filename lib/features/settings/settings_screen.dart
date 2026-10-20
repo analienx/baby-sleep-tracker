@@ -170,13 +170,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 14),
                   _SettingsSection(
                     title: 'Private cloud account',
-                    description: 'Keep your sleep history across app restarts '
+                    description:
+                        'Keep your sleep history across app restarts '
                         'and protect access with email. Family sharing requires '
                         'the separate secure family service.',
                     child: ListTile(
                       leading: const Icon(Icons.cloud_done_outlined),
                       title: const Text('Account and recovery'),
-                      subtitle: const Text('Email verification, restore, privacy and deletion'),
+                      subtitle: const Text(
+                        'Email verification, restore, privacy and deletion',
+                      ),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => context.push('/account'),
                     ),

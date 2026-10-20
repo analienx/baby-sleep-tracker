@@ -41,7 +41,8 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
       if (mounted) {
         setState(() {
           error = true;
-          message = 'Firebase could not finish: ${exception.code}. Check the email and connection.';
+          message =
+              'Firebase could not finish: ${exception.code}. Check the email and connection.';
         });
       }
     } on StateError catch (exception) {
@@ -55,7 +56,8 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
       if (mounted) {
         setState(() {
           error = true;
-          message = 'Action not confirmed. Check your connection and try again.';
+          message =
+              'Action not confirmed. Check your connection and try again.';
         });
       }
     } finally {
@@ -76,10 +78,12 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('This permanently erases all sleep revisions '
-                  'from your private cloud and deletes the login. '
-                  'Copies you exported cannot be recalled. '
-                  'Stay online until deletion finishes.'),
+              const Text(
+                'This permanently erases all sleep revisions '
+                'from your private cloud and deletes the login. '
+                'Copies you exported cannot be recalled. '
+                'Stay online until deletion finishes.',
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: confirm,
@@ -147,24 +151,30 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Private Firebase sync',
-                              style: Theme.of(context).textTheme.titleLarge),
+                          Text(
+                            'Private Firebase sync',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                           const SizedBox(height: 8),
-                          Text(user.isAnonymous
-                              ? 'Saved to this device and its private cloud account. '
-                                'Add email recovery before changing phones or uninstalling.'
-                              : 'Your records are tied to ${user.email ?? 'your email account'}. '
-                                'Sign in with this email on a new phone to restore synced history.'),
+                          Text(
+                            user.isAnonymous
+                                ? 'Saved to this device and its private cloud account. '
+                                      'Add email recovery before changing phones or uninstalling.'
+                                : 'Your records are tied to ${user.email ?? 'your email account'}. '
+                                      'Sign in with this email on a new phone to restore synced history.',
+                          ),
                           const SizedBox(height: 10),
-                          Text(user.isAnonymous
-                              ? 'Recovery: Not enabled'
-                              : user.emailVerified
-                                  ? 'Recovery: Email verified'
-                                  : 'Recovery: Email verification pending',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.primary,
-                              )),
+                          Text(
+                            user.isAnonymous
+                                ? 'Recovery: Not enabled'
+                                : user.emailVerified
+                                ? 'Recovery: Email verified'
+                                : 'Recovery: Email verification pending',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -176,10 +186,12 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(user.isAnonymous
-                              ? 'Protect or restore an account'
-                              : 'Email verification and recovery',
-                              style: Theme.of(context).textTheme.titleLarge),
+                          Text(
+                            user.isAnonymous
+                                ? 'Protect or restore an account'
+                                : 'Email verification and recovery',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                           const SizedBox(height: 16),
                           if (user.isAnonymous) ...[
                             TextField(
@@ -201,49 +213,68 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
                             ),
                             const SizedBox(height: 16),
                             FilledButton(
-                              onPressed: busy ? null : () => _work(
-                                () => widget.client.linkEmailPassword(
-                                  email.text, password.text,
-                                ),
-                                'Account protected. Check your email for verification.',
+                              onPressed: busy
+                                  ? null
+                                  : () => _work(
+                                      () => widget.client.linkEmailPassword(
+                                        email.text,
+                                        password.text,
+                                      ),
+                                      'Account protected. Check your email for verification.',
+                                    ),
+                              child: const Text(
+                                'Protect my existing sleep records',
                               ),
-                              child: const Text('Protect my existing sleep records'),
                             ),
                             const SizedBox(height: 8),
                             TextButton(
-                              onPressed: busy ? null : () => _work(
-                                () => widget.client.signInExisting(
-                                  email.text, password.text,
-                                ),
-                                'Existing account restored.',
+                              onPressed: busy
+                                  ? null
+                                  : () => _work(
+                                      () => widget.client.signInExisting(
+                                        email.text,
+                                        password.text,
+                                      ),
+                                      'Existing account restored.',
+                                    ),
+                              child: const Text(
+                                'Sign in to an existing account',
                               ),
-                              child: const Text('Sign in to an existing account'),
                             ),
                             const Text(
                               'Switching accounts is blocked if this anonymous '
                               'account already contains records. Protect it first.',
                             ),
                           ] else ...[
-                            Text('Signed in: ${user.email ?? 'email not available'}'),
+                            Text(
+                              'Signed in: ${user.email ?? 'email not available'}',
+                            ),
                             const SizedBox(height: 12),
                             OutlinedButton(
-                              onPressed: busy ? null : () => _work(
-                                widget.client.sendVerificationEmail,
-                                'Verification email sent.',
-                              ),
+                              onPressed: busy
+                                  ? null
+                                  : () => _work(
+                                      widget.client.sendVerificationEmail,
+                                      'Verification email sent.',
+                                    ),
                               child: const Text('Send verification email'),
                             ),
                             TextButton(
-                              onPressed: busy ? null : () => _work(
-                                widget.client.refreshVerification,
-                                'Email status refreshed.',
-                              ),
+                              onPressed: busy
+                                  ? null
+                                  : () => _work(
+                                      widget.client.refreshVerification,
+                                      'Email status refreshed.',
+                                    ),
                               child: const Text('Refresh verification status'),
                             ),
                             TextButton(
-                              onPressed: busy || user.email == null ? null
+                              onPressed: busy || user.email == null
+                                  ? null
                                   : () => _work(
-                                      () => widget.client.resetPassword(user.email!),
+                                      () => widget.client.resetPassword(
+                                        user.email!,
+                                      ),
                                       'Password reset email requested.',
                                     ),
                               child: const Text('Send password reset email'),
@@ -256,10 +287,13 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
                   if (message != null)
                     Padding(
                       padding: const EdgeInsets.all(14),
-                      child: Text(message!,
-                        style: TextStyle(color: error
-                            ? Theme.of(context).colorScheme.error
-                            : Theme.of(context).colorScheme.primary),
+                      child: Text(
+                        message!,
+                        style: TextStyle(
+                          color: error
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ),
                   const SizedBox(height: 12),
@@ -269,17 +303,23 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text('Privacy and deletion',
-                              style: Theme.of(context).textTheme.titleLarge),
+                          Text(
+                            'Privacy and deletion',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                           const SizedBox(height: 8),
-                          const Text('This stage stores one private sleep journal '
-                              'per account. Caregiver invitations are disabled '
-                              'until the independently reviewed family backend is available.'),
+                          const Text(
+                            'This stage stores one private sleep journal '
+                            'per account. Caregiver invitations are disabled '
+                            'until the independently reviewed family backend is available.',
+                          ),
                           const SizedBox(height: 14),
                           OutlinedButton.icon(
                             onPressed: busy ? null : _confirmDelete,
                             icon: const Icon(Icons.delete_forever_outlined),
-                            label: const Text('Erase my cloud data and account'),
+                            label: const Text(
+                              'Erase my cloud data and account',
+                            ),
                           ),
                         ],
                       ),

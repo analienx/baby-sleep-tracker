@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 45
     env:
       LITTLE_REST_STAGING_BUILD: '1'
-      LITTLE_REST_STAGING_KEYSTORE_PATH: ${{ runner.temp }}/little-rest-staging.p12
+      LITTLE_REST_STAGING_KEYSTORE_PATH: /tmp/little-rest-staging.p12
       LITTLE_REST_STAGING_KEYSTORE_PASSWORD: ${{ secrets.LITTLE_REST_STAGING_P12_PASSWORD }}
       STAGE_P12_B64: ${{ secrets.LITTLE_REST_STAGING_P12_B64 }}
       STAGE_CONFIG_B64: ${{ secrets.LITTLE_REST_STAGING_CONFIG_B64 }}
