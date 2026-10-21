@@ -2,11 +2,26 @@
 
 A calm, family-first sleep tracker for Android and iPhone.
 
-**Status:** F0/F1/F2/F3 are **draft, not release-approved**. The F2 family
-backend and F3 experience fixes are integrated for joint review, but G0–G3
-and physical-device sign-off remain open. The default app uses
-**non-persistent preview storage** and no production Firebase project is
-configured. Do not use these builds for real infant sleep or as a backup.
+**Status:** Pre-release, with all review gates G0–G3 and physical-device
+acceptance still open. The ordinary app is a **volatile preview**; its sleep
+entries disappear after restart. A separate Firebase Spark personal-account
+build has passed emulator tests, but the signed staging APK and real-device
+persistence/recovery/deletion tests are not yet complete. Do not use either
+build for real infant data or as a dependable backup.
+
+## Three deliberately separate modes
+
+| Mode | Data | Sharing | Readiness |
+| --- | --- | --- | --- |
+| Default preview | Memory only; lost at restart | None | Physical Android smoke tested |
+| Opt-in Spark personal staging | Firebase Auth + private Firestore journal, native offline cache | **Single account only** | CI/emulators green; signed APK and phone security QA pending |
+| Opt-in family backend | Shared household journal with trusted Cloud Functions | Secure caregiver invites/revocation | Emulators only; requires explicit Blaze billing consent, App Check and G2/G3 approval |
+
+No staging mode silently activates Firebase in default builds; staging and
+family modes are mutually exclusive. The Spark personal mode is **debug-only**
+and uses a separate Android package that does not replace the preview.
+[Personal Spark runbook](docs/SPARK_PERSONAL_STAGING.md) ·
+[Production and family readiness](docs/FIREBASE_RELEASE_READINESS.md).
 
 ## Run the preview
 

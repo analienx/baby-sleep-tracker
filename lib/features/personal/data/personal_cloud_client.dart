@@ -10,6 +10,9 @@ final class PersonalCloudClient {
   final FirebaseAuth auth;
   final FirebaseFirestore firestore;
   final ValueNotifier<String?> deletionNotice = ValueNotifier(null);
+  // While deleting, unmount the sleep workspace to prevent local UI writes
+  // racing with self-erasure. Other devices still require server fencing.
+  final ValueNotifier<bool> deletionInProgress = ValueNotifier(false);
 
   CollectionReference<Map<String, dynamic>> operations(String uid) =>
       firestore.collection('personalSleep').doc(uid).collection('operations');
@@ -87,6 +90,18 @@ final class PersonalCloudClient {
   /// deleting their Firebase Auth identity. Failures preserve the identity
   /// for retry; never call Auth.delete while any operation remains on-server.
   Future<void> deleteAccount({String? password}) async {
+    if (deletionInProgress.value) {
+      throw StateError('Account deletion is already in progress.');
+    }
+    deletionInProgress.value = true;
+    try {
+      await _deleteAccountOnline(password: password);
+    } finally {
+      deletionInProgress.value = false;
+    }
+  }
+
+  Future<void> _deleteAccountOnline({String? password}) async {
     final user = auth.currentUser;
     if (user == null) throw StateError('You must be signed in.');
     if (!user.isAnonymous) {

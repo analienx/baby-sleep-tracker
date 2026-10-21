@@ -35,11 +35,14 @@ The Account and Recovery screen can link email/password (minimum 12 chars),
 send verification or reset emails, and restore an existing account only after
 the empty anonymous session has been verified on the server. Protecting an
 already populated anonymous account keeps its UID and journal. The deletion
-flow reauthenticates password users, waits for pending writes, deletes private
-documents in bounded batches with server acknowledgement, confirms the
-collection is empty, deletes the Auth account and attempts cache clearing.
-A failed cache clear is disclosed. This cannot replace independent G2
-data-deletion review or a server-side deletion service for production.
+flow reauthenticates password users, pauses the active sleep workspace and
+fences new local repository writes during erasure, waits for pending writes,
+deletes private documents in bounded batches with server acknowledgement,
+confirms the collection is empty, deletes the Auth account and attempts cache
+clearing. A failed cache clear is disclosed. **This local guard cannot fence
+concurrent writes from another device**; server-controlled erasure, interrupted
+cleanup and cache isolation still require independent G2 review. Do not
+represent client-side deletion as production-complete.
 
 Visual updates use explicitly contrasted Material 3 tokens: deep indigo
 primary, sage secondary, warm neutral surfaces, readable body/icon colors,

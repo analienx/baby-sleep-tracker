@@ -31,7 +31,25 @@ final class PersonalGate extends StatelessWidget {
           ),
         );
       }
-      return child!;
+      return ValueListenableBuilder<bool>(
+        valueListenable: client.deletionInProgress,
+        child: child,
+        builder: (context, deleting, workspace) {
+          if (!deleting) return workspace!;
+          // Dispose the repository listeners and disable write controls
+          // before any journal erasure begins; never show stale records.
+          return const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text('Deleting private cloud records…'),
+                ),
+              ),
+            ),
+          );
+        },
+      );
     },
     child: StreamBuilder<User?>(
       stream: client.auth.userChanges(),
@@ -69,6 +87,7 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
       FirestoreSleepRepository.personal(
         firestore: widget.client.firestore,
         uid: widget.uid,
+        writeBlocked: widget.client.deletionInProgress,
       );
 
   @override

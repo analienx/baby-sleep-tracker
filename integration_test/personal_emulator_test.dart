@@ -1,6 +1,8 @@
 import 'package:baby_sleep_tracker/app/personal_bootstrap.dart';
 import 'package:baby_sleep_tracker/features/personal/data/personal_cloud_client.dart';
 import 'package:baby_sleep_tracker/features/personal/presentation/personal_gate.dart';
+import 'package:baby_sleep_tracker/features/sleep/data/firestore_sleep_repository.dart';
+import 'package:baby_sleep_tracker/features/sleep/domain/sleep_session.dart';
 import 'package:baby_sleep_tracker/main.dart' as application;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -67,12 +69,45 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: Text('Reattaching journal'))),
       );
-      await tester.pumpWidget(
-        PersonalGate(
-          client: PersonalCloudClient(auth: auth, firestore: firestore),
-        ),
+      final personalClient = PersonalCloudClient(
+        auth: auth,
+        firestore: firestore,
       );
+      await tester.pumpWidget(PersonalGate(client: personalClient));
       await until(find.text('Wake up'), 'cached journal reattached');
+
+      // Erasure must remove the journal workspace, not merely disable one
+      // button. No private history or write controls may remain visible.
+      personalClient.deletionInProgress.value = true;
+      await tester.pump();
+      expect(find.text('Deleting private cloud records…'), findsOneWidget);
+      expect(find.text('Wake up'), findsNothing);
+      final blockedRepo = FirestoreSleepRepository.personal(
+        firestore: firestore,
+        uid: uid,
+        writeBlocked: personalClient.deletionInProgress,
+      );
+      try {
+        await blockedRepo.readSessions();
+        await expectLater(
+          blockedRepo.put(
+            SleepSession(
+              id: 'write-during-deletion',
+              startedAtUtc: DateTime.utc(2026, 10, 20),
+              endedAtUtc: null,
+            ),
+          ),
+          throwsA(isA<StateError>()),
+        );
+      } finally {
+        await blockedRepo.dispose();
+      }
+      personalClient.deletionInProgress.value = false;
+      await tester.pump();
+      await until(
+        find.text('Wake up'),
+        'workspace restored after cancellation',
+      );
 
       await firestore.enableNetwork();
       await firestore.waitForPendingWrites().timeout(
@@ -117,6 +152,17 @@ void main() {
       } finally {
         await second.delete();
       }
+
+      // The same synthetic account must be removable online without leaving
+      // an authenticated journal behind. This still cannot prove production
+      // erasure races involving another signed-in device.
+      final deleting = personalClient.deleteAccount();
+      await tester.pump();
+      expect(find.text('Deleting private cloud records…'), findsOneWidget);
+      await deleting.timeout(const Duration(seconds: 65));
+      await tester.pump();
+      expect(auth.currentUser, isNull);
+      expect(personalClient.deletionNotice.value, contains('deleted'));
     },
     timeout: const Timeout(Duration(minutes: 7)),
   );

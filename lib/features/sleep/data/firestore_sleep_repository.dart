@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/sleep_ledger.dart';
@@ -24,6 +25,7 @@ final class FirestoreSleepRepository
            .doc(syntheticUserId)
            .collection('operations'),
        _syntheticUserId = syntheticUserId,
+       _writeBlocked = null,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
@@ -33,12 +35,14 @@ final class FirestoreSleepRepository
   FirestoreSleepRepository.personal({
     required FirebaseFirestore firestore,
     required String uid,
+    ValueListenable<bool>? writeBlocked,
     String Function()? newId,
   }) : _operations = firestore
            .collection('personalSleep')
            .doc(uid)
            .collection('operations'),
        _syntheticUserId = uid,
+       _writeBlocked = writeBlocked,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
@@ -57,12 +61,14 @@ final class FirestoreSleepRepository
            .doc(babyId)
            .collection('operations'),
        _syntheticUserId = actorId,
+       _writeBlocked = null,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
 
   final CollectionReference<Map<String, dynamic>> _operations;
   final String _syntheticUserId;
+  final ValueListenable<bool>? _writeBlocked;
   final String Function() _newId;
   final StreamController<List<SleepSession>> _sessionChanges =
       StreamController.broadcast(sync: true);
@@ -363,6 +369,13 @@ final class FirestoreSleepRepository
     List<String>? resolutionParents,
   }) async {
     await readSessions();
+    // A write started before deletion must also be fenced after the await.
+    // This only fences this device; production needs server-side erasure.
+    if (_writeBlocked?.value ?? false) {
+      throw StateError(
+        'Account deletion is in progress. Sleep edits are paused.',
+      );
+    }
     // Quarantined append-only revisions remain available as audit evidence,
     // but are not valid competing heads. Otherwise a single malformed offline
     // node would block normal Start/Stop/Edit even after the safe projection
