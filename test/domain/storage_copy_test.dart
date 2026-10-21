@@ -4,12 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'all four app storage modes have distinct truthful badges and messages',
+    'all six app storage modes have distinct truthful badges and messages',
     () {
       expect(storageBadge(StorageEnvironment.volatilePreview), 'PREVIEW');
       expect(storageBadge(StorageEnvironment.legacyEmulator), 'EMULATOR');
       expect(storageBadge(StorageEnvironment.familyEmulator), 'FAMILY DEV');
       expect(storageBadge(StorageEnvironment.familyCloud), 'FAMILY');
+      expect(storageBadge(StorageEnvironment.personalCloud), 'CLOUD');
+      expect(storageBadge(StorageEnvironment.personalEmulator), 'PRIVATE DEV');
       const synced = SleepStorageStatus(StoragePhase.synced);
       expect(
         storageMessage(StorageEnvironment.volatilePreview, synced),
@@ -26,6 +28,14 @@ void main() {
       expect(
         storageMessage(StorageEnvironment.familyCloud, synced),
         contains('family cloud'),
+      );
+      expect(
+        storageMessage(StorageEnvironment.personalCloud, synced),
+        contains('Synced privately to Firebase'),
+      );
+      expect(
+        storageMessage(StorageEnvironment.personalEmulator, synced),
+        contains('test emulator'),
       );
       for (final family in [
         StorageEnvironment.familyCloud,

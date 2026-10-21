@@ -1,7 +1,7 @@
 name: baby_sleep_tracker
 description: A calm, family-first sleep tracker for Android and iPhone.
 publish_to: none
-version: 0.1.0+1
+version: 0.2.0-beta.1+2
 
 environment:
   sdk: ^3.13.0
@@ -36,3 +36,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf

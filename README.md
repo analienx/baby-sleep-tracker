@@ -1,174 +1,110 @@
-# Baby Sleep Tracker
+<div align="center">
 
-A calm, family-first sleep tracker for Android and iPhone.
+<img src="docs/media/little-rest-hero.png" alt="Little Rest — a calming sleep journal, shown with genuine Android app screens" width="100%" />
 
-**Status:** F0/F1/F2/F3 are **draft, not release-approved**. The F2 family
-backend and F3 experience fixes are integrated for joint review, but G0–G3
-and physical-device sign-off remain open. The default app uses
-**non-persistent preview storage** and no production Firebase project is
-configured. Do not use these builds for real infant sleep or as a backup.
+# Little Rest
 
-## Run the preview
+**A calmer way to follow the little moments between naps.**
 
-Prerequisites: Flutter **3.47.7** (stable), Dart **3.13.5** (bundled), Android
-Studio/Android SDK for Android, or macOS/Xcode for iOS. Run from the repository
-root:
+A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle trends, and a private journal that can catch up after a night offline.
 
-```sh
+**Flutter · Material 3 · Android + iOS source · Firebase**
+
+**Latest pre-release: 0.2.0-beta.1** · [Changelog](CHANGELOG.md) · [Release notes](docs/releases/0.2.0-beta.1.md)
+
+[See the app](#the-experience) · [Try on Android](#try-it) · [How it works](#how-it-works) · [Development](#development)
+
+</div>
+
+> [!IMPORTANT]
+> **Private preview, not a public release.** Android Firebase staging runs on a test project and has not passed full on-device privacy/recovery testing. Use **synthetic sleep data only**. An installable iPhone build and secure two-caregiver sharing are not yet available. The newest work is in [PR #31](https://github.com/analienx/baby-sleep-tracker/pull/31) (stacked on [PR #26](https://github.com/analienx/baby-sleep-tracker/pull/26)); the app code is not merged into the default branch.
+
+## The experience
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/media/today-dark.png" alt="Today in night mode: one-tap sleep timer and at-a-glance totals" width="100%" /></td>
+    <td align="center" width="33%"><img src="docs/media/trends-dark.png" alt="Trends in night mode: seven-day sleep patterns with honest empty states" width="100%" /></td>
+    <td align="center" width="33%"><img src="docs/media/settings-dark.png" alt="Settings: theme controls, private cloud account, and explicitly disabled family sharing" width="100%" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>One-tap Today</strong></td>
+    <td align="center"><strong>Honest Trends</strong></td>
+    <td align="center"><strong>Private controls</strong></td>
+  </tr>
+</table>
+
+<sub>Actual Vivo Android 16 staging-app captures, taken with an empty journal; status and gesture bars cropped out. No sleep records, email addresses or real child data appear. These show an active pre-release branch, not production approval.</sub>
+
+### Made for moments when you're running on little sleep
+
+- **One clear action.** Start and end a sleep session without navigating through forms. Correct the timeline when you miss a tap.
+- **Useful at a glance.** Recent sleep, number of sessions, history and trends, without claiming clinical or predictive accuracy.
+- **Designed for real nights.** Light and dark themes, larger tap targets, explicit offline/sync status and intentionally restrained colors.
+- **Private by default.** A separate, opt-in Firebase Spark mode stores an immutable journal under your own authenticated user ID. The ordinary preview never silently uploads data.
+- **Own your information.** JSON/CSV export and staged account-recovery/deletion flows are implemented, with important security limitations documented below.
+
+## Try it
+
+| Platform | Current path | Availability |
+| --- | --- | --- |
+| **Android** | Download the private signed **staging APK** from the [latest successful **Spark staging Android** run](https://github.com/analienx/baby-sleep-tracker/actions/workflows/spark-staging-android.yml) under **Artifacts**, unzip and install `app-debug.apk` | QA only · artifact expires after 14 days |
+| **Android developers** | On the [feature branch](https://github.com/analienx/baby-sleep-tracker/tree/feat/spark-personal-cloud-light-ui), use `python scripts/staging_deploy.py doctor` and `deploy` after owner-managed secrets are configured | GitHub runner build + ADB deploy |
+| **iPhone** | Flutter source and iOS simulator builds exist, but physical iPhone distribution still needs macOS/Xcode, Apple signing and TestFlight/ad-hoc provisioning | **Not installable yet** |
+
+Android may require **Install unknown apps** permission for the browser or file manager opening the APK. It installs as `com.analienx.baby_sleep_tracker.staging` and does not overwrite the memory-only preview. No Google Play / App Store listing exists yet.
+
+**Want to test more than one phone?** The Spark build is **personal-account only**. Link a recovery email before switching devices; anonymous accounts are not reliably portable. The **family backend** has working emulator-tested onboarding, invitations, caregiver controls and shared history, but Cloud Functions cannot be activated on the current free project; a separately approved Blaze QA project and real-device review are required. Household actions are intentionally not faked in Spark.
+
+## How it works
+
+```mermaid
+flowchart LR
+  A["Flutter app<br/>Today · History · Trends"] --> B{"Explicit mode"}
+  B --> C["Memory-only preview<br/>resets on restart"]
+  B --> D["Personal Spark staging"]
+  D --> E["Firebase Auth"]
+  D --> F["Private Firestore<br/>immutable operation journal"]
+  F --> G["Native offline cache<br/>sync after reconnect"]
+  B -. "not deployed" .-> H["Future family backend<br/>trusted callable functions"]
+```
+
+| Mode | Data durability | Sharing | Status |
+| --- | --- | --- | --- |
+| **Preview** | In memory only; disappears at restart | None | UI smoke-tested |
+| **Personal staging** | Firebase Auth + offline Firestore journal | One account, not a household | Emulator CI and Android install/launch verified; physical data QA pending |
+| **Family backend** | Server-authorized shared household journal | Caregiver invites/revocation | Emulator-validated code; **not deployed** (requires billing decision + security approval) |
+
+The app uses **Flutter/Dart, Riverpod, go_router, Firebase Auth and Cloud Firestore**. No background timer is kept alive to estimate sleep time: durations derive from stored timestamps. Conflicting edits are modeled as operations, not silent last-write-wins replacement.
+
+## Development
+
+The currently testable app lives on the [Spark/premium feature branch](https://github.com/analienx/baby-sleep-tracker/tree/feat/spark-personal-cloud-light-ui). For a memory-only preview:
+
+```bash
+git checkout feat/spark-personal-cloud-light-ui
 flutter pub get --enforce-lockfile
 flutter run
 ```
 
-The app opens on Today. Tap **Start sleep** / **Wake up** to interact with a
-memory-only demonstration, or navigate between **Today**, **History** and
-**Trends**. Settings (gear icon) provides a device-saved appearance preference
-and JSON/CSV sharing. The seven-day view
-uses local civil days, marks absent records as unknown, and labels today as
-incomplete. Every screen marks its preview status: all entries disappear when
-the app restarts. No child profile, credentials, synthetic sleep fixture or
-Firebase network call is configured in the running app.
-
-**F3 export semantics:** Family-mode archives include the immutable operation
-journal, accepted sessions and competing edits. JSON/CSV archives say whether
-they are cloud-confirmed, complete, and free of malformed operation data.
-Preview-mode exports are explicitly **partial** and not durable. A share-sheet
-file may remain in temporary app storage for up to a day; Settings can clear
-those staged copies immediately after sharing. External share recipients can
-retain separate copies. Family invitations, revocation, and owner-only
-household deletion run only against the F2 backend, never ordinary preview.
-Household deletion alone does not delete separate Firebase sign-in
-credentials. The new **Delete my account** action removes Firebase Auth as
-well, with password reauthentication and separate owner/caregiver semantics.
-Shared caregiver edits retain pseudonymous attribution; previously cached
-copies on other phones cannot be remotely erased. An external self-service
-deletion page is prepared for Firebase Hosting, but cannot be deployed until
-its production App Check web registration is configured. Deployment of the
-rate-limited family callables also requires the Secret Manager setting
-`FAMILY_ABUSE_PEPPER` (see the Firebase release-readiness runbook).
-
-### Opt-in offline Firebase development mode (synthetic data only)
-
-In a separate terminal, with Firebase CLI installed:
-
-```sh
-firebase emulators:start --project demo-little-rest
-```
-
-Then run on an **Android emulator** or **iOS simulator**:
-
-```sh
-flutter run --dart-define=USE_FIREBASE_EMULATOR=true
-```
-
-The debug app connects to local Auth and Firestore emulators, signs in with a
-synthetic anonymous account, and uses the native persistent Firestore cache.
-It never falls back silently to preview storage if emulator sign-in fails.
-The Today/History banner distinguishes cached, pending and synced states.
-This mode is blocked in release builds. Physical phone host routing and
-force-stop/reboot behavior are not yet validated. See
-[F1 algorithms and smoke checklist](docs/F1_ALGORITHMS.md) for limitations.
-
-### Development checks
-
-```sh
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test
-flutter build apk --debug
-```
-
-Unit tests inject a fake clock and synthetic sessions. Six golden snapshots
-under `test/goldens/` capture light/dark Today, Trends and Settings. Updating
-them requires an intentional review (`flutter test --update-goldens`). CI pins
-Flutter and the GitHub Actions source revisions, uses the committed
-`pubspec.lock`, scans for secrets, uploads a **debug** Android APK and checks an
-**unsigned iOS simulator build** on pull requests. No store credentials or
-production services are needed.
-
-Project layout:
-
-```text
-lib/app/                         Navigation, themes, clock and DI
-lib/features/sleep/domain/       UTC sessions, calculations, actions, contracts
-lib/features/sleep/data/         Preview and emulator-only Firestore adapters
-lib/features/sleep/presentation/ Today, History, Trends
-lib/features/settings/           Appearance, export and family navigation
-lib/l10n/                        English message bundle and localization API
-test/domain/                     UTC/DST/operation replay and fake-clock tests
-test/widget_test.dart            Navigation, semantics and visual tests
-```
-
-## Product promise
-
-Record a baby's sleep in one tap, review the day at a glance, correct missed events, and share an accurate timeline across caregivers—even when a phone temporarily has no connection.
-
-## First release (v1)
-
-- One-tap sleep start and wake; elapsed sleep and awake time
-- Manual entry, editing, undo, and deletion of sleep sessions
-- Timeline, rolling 24-hour sleep total, session count, and wake-window duration
-- Shared household with caregiver invitation and access controls
-- Persistent offline recording and reconciliation after reconnect
-- Polished light and dark themes on Android and iPhone
-- Private data handling, export, and deletion controls
-
-No feeding, diaper tracking, medical sleep scoring, AI predictions, or passive monitoring in v1.
-
-## Architecture
-
-- **App:** Flutter/Dart, Riverpod, go_router
-- **Backend:** Firebase Authentication, Cloud Firestore, narrowly scoped serverless invitation/revocation handlers
-- **Persistence:** Firestore native offline persistence; no duplicate custom SQLite sync engine in v1
-- **Security:** Household-scoped Firestore Security Rules, emulator rule tests
-- **Quality:** GitHub Actions and real-device Android/iOS release gates
-
-Design decisions, data contracts, risks, and review requirements are documented in:
-- [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
-- [Architecture decision](docs/ADR-0001-flutter-firebase.md)
-- [Firebase production-readiness and account-deletion runbook](docs/FIREBASE_RELEASE_READINESS.md)
-- [GitHub backlog](../../issues)
-
-## Development principles
-
-1. A sleep event must survive app termination, a reboot, or loss of connectivity after its local write is committed.
-2. A running timer is derived from persisted timestamps, never from a long-running background loop.
-3. Two caregivers must not silently overwrite one another's recorded actions.
-4. One primary action dominates the home screen; corrections are always easy.
-5. All child records are private by default, and every backend path enforces household membership.
-6. Do not claim medical accuracy or infer why an infant is awake from sleep-only data.
-
-## Release governance
-
-Each phase has a blocking GitHub review gate. F0 is tracked in issues
-[#2](../../issues/2) and [#3](../../issues/3), and blocking review gate
-[#4](../../issues/4). F1 issues [#5](../../issues/5)–[#8](../../issues/8)
-depend on that gate and the F1 review gate is [#9](../../issues/9). No phase is
-accepted until test evidence and its review checklist are complete. See
-[F0 review notes](docs/F0_REVIEW.md) and
-[F1 algorithm evidence](docs/F1_ALGORITHMS.md) and
-[F3 review evidence](docs/F3_REVIEW.md).
-
-## Public repository notice
-
-Never commit real child data, authentication secrets, Firebase service account credentials, signing keys, exports, or device-specific personal information. This repository's open-source license has not yet been selected.
-
-## Family-sharing preview (F2, stacked draft)
-
-See [F2 implementation and security runbook](docs/F2_IMPLEMENTATION.md). The
-ordinary app remains **volatile preview**; no production Firebase connection is
-made by default. Run the F2 emulator backend using:
+For private Spark staging, follow the [staging setup, security rules and deployment runbook](docs/SPARK_PERSONAL_STAGING.md). **Do not** copy the operator's Firebase configuration, signing keys or private exports into this public repository.
 
 ```bash
-cd functions && npm ci && cd ..
-npx --prefix functions firebase emulators:start --project demo-little-rest --only auth,firestore,functions
-flutter run --dart-define=USE_FAMILY_EMULATOR=true
+flutter analyze
+flutter test
+python -m unittest discover -s scripts -p 'test_staging_deploy.py' -v
 ```
 
-The older F1 synthetic emulator uses `firebase.dev.json` and
-`--dart-define=USE_FIREBASE_EMULATOR=true`. Never deploy the development rules.
-The production opt-in is deliberately blocked without environment-specific app
-identifiers and G2 security approval. Cloud function deployment, real device
-verification, and account-recovery QA remain open. The deletion flow requires
-typing `DELETE`, fences family data immediately, recursively removes nested
-sleep history and invitations, and permits interrupted cleanup to be resumed.
-It has emulator security coverage, not production verification.
+CI includes Flutter checks, visual goldens, Firebase security rules, personal/family emulator tests, and signed Android staging builds. The screenshot gallery uses **real rendered staging-app captures** verified to show no child records, not the test goldens (whose deterministic test font produces block glyphs).
+
+## Trust, safety & release status
+
+Little Rest is for recording sleep, **not medical guidance**. The Spark test project has restrictive owner-only Firestore rules, but its client-side account-deletion guard does **not** prevent concurrent writes from another device. Physical offline/recovery/deletion testing, App Check, independent privacy/security review, iPhone QA and release signoff remain open. Family calls require a separately approved Blaze deployment; we will not imitate them with insecure client-editable membership.
+
+**Font credit:** The app bundles [Inter](https://github.com/rsms/inter) under the [SIL Open Font License](assets/fonts/OFL.txt). Screenshot compositions use actual emulator pixels, not generated interfaces.
+
+**Engineering and review notes:** [Full developer guide](README_DEVELOPER.md) · [Architecture decision](docs/ADR-0001-flutter-firebase.md) · [F1 correctness](docs/F1_ALGORITHMS.md) · [F2 security](docs/F2_IMPLEMENTATION.md) · [F3 review](docs/F3_REVIEW.md) · [Physical QA checklist](docs/PHYSICAL_QA.md) · [Issues and gates](https://github.com/analienx/baby-sleep-tracker/issues).
+
+---
+
+<div align="center"><sub>Made for tired hands and quieter nights. · Pre-release · No real infant data in repository assets.</sub></div>

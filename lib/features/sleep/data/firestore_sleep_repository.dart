@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/sleep_ledger.dart';
@@ -24,6 +25,23 @@ final class FirestoreSleepRepository
            .doc(syntheticUserId)
            .collection('operations'),
        _syntheticUserId = syntheticUserId,
+       writeBlocked = null,
+       _newId = newId ?? const Uuid().v4 {
+    _subscribe();
+  }
+
+  /// Private account journal for real, no-billing Firebase Spark staging.
+  /// Rules enforce actor and path owner and prohibit other users' access.
+  FirestoreSleepRepository.personal({
+    required FirebaseFirestore firestore,
+    required String uid,
+    this.writeBlocked,
+    String Function()? newId,
+  }) : _operations = firestore
+           .collection('personalSleep')
+           .doc(uid)
+           .collection('operations'),
+       _syntheticUserId = uid,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
@@ -42,12 +60,14 @@ final class FirestoreSleepRepository
            .doc(babyId)
            .collection('operations'),
        _syntheticUserId = actorId,
+       writeBlocked = null,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
 
   final CollectionReference<Map<String, dynamic>> _operations;
   final String _syntheticUserId;
+  final ValueListenable<bool>? writeBlocked;
   final String Function() _newId;
   final StreamController<List<SleepSession>> _sessionChanges =
       StreamController.broadcast(sync: true);
@@ -90,7 +110,7 @@ final class FirestoreSleepRepository
             StoragePhase.failed,
             detail:
                 'Live updates unavailable. Showing last known history. '
-                'Check your connection and family access.',
+                'Check your connection and account access.',
           )
         : _quarantineCount > 0
         ? SleepStorageStatus(
@@ -348,6 +368,13 @@ final class FirestoreSleepRepository
     List<String>? resolutionParents,
   }) async {
     await readSessions();
+    // A write started before deletion must also be fenced after the await.
+    // This only fences this device; production needs server-side erasure.
+    if (writeBlocked?.value ?? false) {
+      throw StateError(
+        'Account deletion is in progress. Sleep edits are paused.',
+      );
+    }
     // Quarantined append-only revisions remain available as audit evidence,
     // but are not valid competing heads. Otherwise a single malformed offline
     // node would block normal Start/Stop/Edit even after the safe projection

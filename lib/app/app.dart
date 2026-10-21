@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/family/data/family_client.dart';
 import '../features/family/presentation/family_screen.dart';
+import '../features/personal/data/personal_cloud_client.dart';
+import '../features/personal/presentation/personal_account_screen.dart';
 import '../features/sleep/presentation/history_screen.dart';
 import '../features/sleep/presentation/today_screen.dart';
 import '../features/sleep/presentation/trends_screen.dart';
@@ -21,10 +23,12 @@ final class BabySleepApp extends StatefulWidget {
     this.familyClient,
     this.family,
     this.familyFromCache = false,
+    this.personalClient,
   });
   final FamilyClient? familyClient;
   final FamilyContext? family;
   final bool familyFromCache;
+  final PersonalCloudClient? personalClient;
 
   @override
   State<BabySleepApp> createState() => _BabySleepAppState();
@@ -94,8 +98,15 @@ final class _BabySleepAppState extends State<BabySleepApp> {
           onAppearanceChanged: _changeAppearance,
           familyAvailable: widget.familyClient != null && widget.family != null,
           familyFromCache: widget.familyFromCache,
+          personalCloudAvailable: widget.personalClient != null,
         ),
       ),
+      if (widget.personalClient != null)
+        GoRoute(
+          path: '/account',
+          builder: (_, _) =>
+              PersonalAccountScreen(client: widget.personalClient!),
+        ),
       if (widget.familyClient != null && widget.family != null)
         GoRoute(
           path: '/family',

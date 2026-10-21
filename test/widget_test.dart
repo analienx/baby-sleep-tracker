@@ -59,6 +59,72 @@ void main() {
       greaterThanOrEqualTo(3),
     );
   });
+  test('light palette meets readable primary, secondary and body contrast', () {
+    double contrast(Color a, Color b) {
+      final l1 = a.computeLuminance();
+      final l2 = b.computeLuminance();
+      return (l1 > l2 ? l1 + 0.05 : l2 + 0.05) /
+          (l1 > l2 ? l2 + 0.05 : l1 + 0.05);
+    }
+
+    final scheme = SleepTheme.light().colorScheme;
+    expect(
+      contrast(scheme.primary, scheme.onPrimary),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrast(scheme.secondary, scheme.onSecondary),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(contrast(scheme.onSurface, scheme.surface), greaterThanOrEqualTo(7));
+    expect(
+      contrast(scheme.onSurfaceVariant, scheme.surface),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrast(scheme.onPrimaryContainer, scheme.primaryContainer),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrast(scheme.onSecondaryContainer, scheme.secondaryContainer),
+      greaterThanOrEqualTo(4.5),
+    );
+  });
+
+  testWidgets('Light mode keeps the active sleep panel bright and readable', (
+    tester,
+  ) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start sleep'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('SLEEPING NOW'), findsOneWidget);
+    final card = find
+        .ancestor(
+          of: find.text('SLEEPING NOW'),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container && widget.decoration is BoxDecoration,
+          ),
+        )
+        .first;
+    final gradient =
+        (tester.widget<Container>(card).decoration! as BoxDecoration).gradient!
+            as LinearGradient;
+    expect(gradient.colors.first, const Color(0xFFE8E0F6));
+    expect(gradient.colors.last, const Color(0xFFF1EBFA));
+    final timerText = tester.widget<Text>(find.text('00:00:00'));
+    expect(timerText.style!.color, SleepTheme.light().colorScheme.onSurface);
+    final wake = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Wake up'),
+    );
+    final wakeBackground = wake.style!.backgroundColor!.resolve({});
+    expect(wakeBackground, SleepTheme.light().colorScheme.primary);
+  });
+
   testWidgets('Today, History and Trends are reachable from the main nav', (
     tester,
   ) async {

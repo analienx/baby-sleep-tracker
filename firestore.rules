@@ -68,6 +68,22 @@ service cloud.firestore {
          d.endedAtUtc - d.startedAtUtc <= duration.value(24, 'h')));
     }
 
+    // Separate free Spark staging path: only the Firebase Auth identity that
+    // owns the journal can list/read/create its immutable sleep operations.
+    // DELETE is an explicit self-erasure exception for account deletion.
+    // It grants no family membership or access to any other account.
+    match /personalSleep/{uid} {
+      allow read, write: if false;
+      match /operations/{operationId} {
+        allow get, list: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.auth.uid == uid
+          && operationId.size() >= 1 && operationId.size() <= 128
+          && validOperation(operationId);
+        allow update: if false;
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
     // All account/family/membership changes are server-only and transactional.
     match /users/{uid} {
       allow get: if signedIn() && request.auth.uid == uid

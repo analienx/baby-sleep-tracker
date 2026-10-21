@@ -182,6 +182,18 @@ class _Dashboard extends ConsumerWidget {
         ? nowUtc.difference(latestEnd.first)
         : null;
     final summary = SleepSummary.rolling24Hours(sessions, nowUtc);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    // The active-sleep panel must honor the selected appearance, not remain
+    // in nighttime indigo when the rest of the app is in light mode.
+    final panelColors = dark
+        ? const [SleepPalette.twilight, Color(0xFF3A3E62)]
+        : sleeping
+        ? const [Color(0xFFE8E0F6), Color(0xFFF1EBFA)]
+        : const [Color(0xFFF0EBFB), Color(0xFFF8F5FD)];
+    final panelText = dark ? const Color(0xFFF9F7FF) : scheme.onSurface;
+    final panelMuted = dark ? const Color(0xFFD2D5E5) : scheme.onSurfaceVariant;
+    final panelAccent = dark ? SleepPalette.lavender : scheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,10 +203,10 @@ class _Dashboard extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(25, 26, 25, 25),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [SleepPalette.twilight, Color(0xFF3A3E62)],
+              colors: panelColors,
             ),
           ),
           child: Column(
@@ -206,7 +218,7 @@ class _Dashboard extends ConsumerWidget {
                     sleeping
                         ? Icons.bedtime_rounded
                         : Icons.wb_twilight_rounded,
-                    color: SleepPalette.lavender,
+                    color: panelAccent,
                     size: 22,
                   ),
                   const SizedBox(width: 10),
@@ -219,8 +231,8 @@ class _Dashboard extends ConsumerWidget {
                           : elapsed == null
                           ? 'READY WHEN YOU ARE'
                           : 'AWAKE FOR',
-                      style: const TextStyle(
-                        color: Color(0xFFE1DDF6),
+                      style: TextStyle(
+                        color: panelAccent,
                         letterSpacing: 1.5,
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
@@ -231,7 +243,7 @@ class _Dashboard extends ConsumerWidget {
                     IconButton(
                       tooltip: 'Undo last change',
                       onPressed: () => _undo(context, ref),
-                      icon: const Icon(Icons.undo_rounded, color: Colors.white),
+                      icon: Icon(Icons.undo_rounded, color: panelText),
                     ),
                 ],
               ),
@@ -248,8 +260,8 @@ class _Dashboard extends ConsumerWidget {
                       elapsed == null
                           ? '00:00:00'
                           : formatClockDuration(elapsed),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: panelText,
                         fontSize: 50,
                         fontWeight: FontWeight.w600,
                         fontFeatures: [FontFeature.tabularFigures()],
@@ -268,7 +280,7 @@ class _Dashboard extends ConsumerWidget {
                     : latestEnd.isNotEmpty
                     ? 'Last wake-up ${formatLocalTime(context, latestEnd.first)}'
                     : 'Start with a single tap',
-                style: const TextStyle(color: Color(0xFFD2D5E5), fontSize: 14),
+                style: TextStyle(color: panelMuted, fontSize: 14),
               ),
               if (!compact) ...[
                 const SizedBox(height: 18),
@@ -401,8 +413,12 @@ class _SleepActionRow extends ConsumerWidget {
                   : 'Start sleep',
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: SleepPalette.lavender,
-              foregroundColor: SleepPalette.ink,
+              backgroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? SleepPalette.lavender
+                  : Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? SleepPalette.ink
+                  : Theme.of(context).colorScheme.onPrimary,
             ),
           ),
         ),
@@ -432,9 +448,7 @@ class _SleepActionRow extends ConsumerWidget {
                   'Earlier',
                   style: TextStyle(
                     fontSize: compact ? 13 : null,
-                    color: compact
-                        ? Theme.of(context).colorScheme.onSurface
-                        : Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),

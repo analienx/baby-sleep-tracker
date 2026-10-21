@@ -44,6 +44,9 @@ jobs:
           path: pubspec.lock
           retention-days: 7
 
+      - name: Test staging deployment script
+        run: python3 -m unittest discover -s scripts -p test_staging_deploy.py -v
+
       - name: Enforce Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
 

@@ -4,12 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
 import 'app/emulator_bootstrap.dart';
 import 'app/family_bootstrap.dart';
+import 'app/personal_bootstrap.dart';
 import 'app/providers.dart';
 import 'features/family/presentation/family_gate.dart';
+import 'features/personal/presentation/personal_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (useFirebaseEmulator && (useFamilyEmulator || useFamilyProduction)) {
+  final selected = [
+    useFirebaseEmulator,
+    useFamilyEmulator,
+    useFamilyProduction,
+    usePersonalStaging,
+    usePersonalEmulator,
+  ].where((value) => value).length;
+  if (selected > 1) {
     runApp(
       const MaterialApp(
         home: Scaffold(
@@ -17,6 +26,31 @@ Future<void> main() async {
         ),
       ),
     );
+    return;
+  }
+  if (usePersonalStaging || usePersonalEmulator) {
+    try {
+      final personalClient = await connectPersonalCloud();
+      runApp(PersonalGate(client: personalClient));
+    } catch (_) {
+      runApp(
+        const MaterialApp(
+          home: Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Private cloud could not connect. No sleep data was recorded. '
+                    'Please check your connection and staging Firebase configuration.',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return;
   }
   if (useFamilyEmulator || useFamilyProduction) {
