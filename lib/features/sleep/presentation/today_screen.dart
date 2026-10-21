@@ -189,8 +189,8 @@ class _Dashboard extends ConsumerWidget {
     final panelColors = dark
         ? const [SleepPalette.twilight, Color(0xFF3A3E62)]
         : sleeping
-            ? const [Color(0xFFE8E0F6), Color(0xFFF1EBFA)]
-            : const [Color(0xFFF0EBFB), Color(0xFFF8F5FD)];
+        ? const [Color(0xFFE8E0F6), Color(0xFFF1EBFA)]
+        : const [Color(0xFFF0EBFB), Color(0xFFF8F5FD)];
     final panelText = dark ? const Color(0xFFF9F7FF) : scheme.onSurface;
     final panelMuted = dark ? const Color(0xFFD2D5E5) : scheme.onSurfaceVariant;
     final panelAccent = dark ? SleepPalette.lavender : scheme.primary;
