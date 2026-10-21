@@ -195,8 +195,16 @@ def install(apk, run_id):
     call('adb', '-s', serial, 'install', '-r', str(apk))
     if not present(serial, PKG) or not present(serial, PREVIEW):
         raise Blocked('Package verification failed; do not clear application data.')
-    call('adb', '-s', serial, 'shell', 'am', 'start', '-W',
-         '-n', f'{PKG}/.MainActivity')
+    # The Gradle applicationId has a .staging suffix, but Flutter's Kotlin
+    # MainActivity can retain the original Java package namespace. Resolve the
+    # installed launcher component rather than guessing it from applicationId.
+    resolved = call('adb', '-s', serial, 'shell', 'cmd', 'package',
+                    'resolve-activity', '--brief', PKG)
+    lines = [s.strip() for s in resolved.splitlines() if s.strip()]
+    component = lines[-1] if lines else ''
+    if not component.startswith(PKG + '/') or 'MainActivity' not in component:
+        raise Blocked('Cannot determine the isolated staging launcher component.')
+    call('adb', '-s', serial, 'shell', 'am', 'start', '-W', '-n', component)
     print('Separate Spark staging app installed and launched:', run_info['url'])
     print('Use synthetic records only until privacy review and physical QA pass.')
 
