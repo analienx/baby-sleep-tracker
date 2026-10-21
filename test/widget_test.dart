@@ -91,6 +91,34 @@ void main() {
     );
   });
 
+  testWidgets('Light mode keeps the active sleep panel bright and readable', (tester) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await tester.pumpWidget(appForTest());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start sleep'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('SLEEPING NOW'), findsOneWidget);
+    final card = find.ancestor(
+      of: find.text('SLEEPING NOW'),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is Container && widget.decoration is BoxDecoration,
+      ),
+    ).first;
+    final gradient = (tester.widget<Container>(card).decoration! as BoxDecoration)
+        .gradient! as LinearGradient;
+    expect(gradient.colors.first, const Color(0xFFE8E0F6));
+    expect(gradient.colors.last, const Color(0xFFF1EBFA));
+    final timerText = tester.widget<Text>(find.text('00:00:00'));
+    expect(timerText.style!.color, SleepTheme.light().colorScheme.onSurface);
+    final wake = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Wake up'),
+    );
+    final wakeBackground = wake.style!.backgroundColor!.resolve({});
+    expect(wakeBackground, SleepTheme.light().colorScheme.primary);
+  });
+
   testWidgets('Today, History and Trends are reachable from the main nav', (
     tester,
   ) async {

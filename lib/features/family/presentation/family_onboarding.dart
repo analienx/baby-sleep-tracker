@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/theme.dart';
 import '../data/family_client.dart';
 import 'account_deletion_action.dart';
 import 'account_verification_action.dart';
@@ -56,10 +57,9 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
     final user = widget.client.auth.currentUser;
     return MaterialApp(
       title: 'Little Rest · Family',
-      theme: ThemeData(
-        useMaterial3: true,
-        splashFactory: InkRipple.splashFactory,
-      ),
+      theme: SleepTheme.light(),
+      darkTheme: SleepTheme.dark(),
+      themeMode: ThemeMode.system,
       home: Scaffold(
         body: SafeArea(
           child: Center(
@@ -68,7 +68,11 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
               child: ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const Icon(Icons.nights_stay_rounded, size: 48),
+                  Icon(
+                    Icons.nights_stay_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 48,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     'Little Rest',
@@ -81,7 +85,9 @@ final class _FamilyOnboardingState extends State<FamilyOnboarding> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: SelectableText(
                         _error!,
-                        style: const TextStyle(color: Colors.red),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
                   TextField(

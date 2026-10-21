@@ -32,6 +32,14 @@ open_app() {
 capture() {
   local name="$1" remote="/sdcard/Download/little-rest-readme-$1.png"
   sleep 2
+  # A launcher crash, OS permissions dialog, or another focused app is NOT a
+  # product screenshot. Fail closed instead of uploading false evidence.
+  local focus
+  focus="$(adb shell dumpsys window | grep mCurrentFocus | head -1 || true)"
+  if [[ "$focus" != *"$PKG"* ]]; then
+    echo "Screenshot refused: Little Rest is not the focused window: $focus" >&2
+    return 1
+  fi
   adb shell screencap -p "$remote"
   adb pull "$remote" "$OUT/$name.png" >/dev/null
   adb shell rm -f "$remote"
