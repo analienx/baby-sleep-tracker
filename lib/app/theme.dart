@@ -117,7 +117,12 @@ abstract final class SleepTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          // Button styles do not inherit ThemeData.fontFamily on all OEMs.
+          textStyle: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
