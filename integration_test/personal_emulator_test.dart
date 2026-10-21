@@ -149,20 +149,21 @@ void main() {
               .get(const GetOptions(source: Source.server)),
           throwsA(anything),
         );
+
+        // Keep both Firebase apps alive until the original user completes
+        // deletion. Earlier secondary-app teardown may interfere with the
+        // Android Firestore plugin's pending-write check.
+        // This still cannot prove production erasure with another device.
+        final deleting = personalClient.deleteAccount();
+        await tester.pump();
+        expect(find.text('Deleting private cloud records…'), findsOneWidget);
+        await deleting.timeout(const Duration(seconds: 65));
+        await tester.pump();
+        expect(auth.currentUser, isNull);
+        expect(personalClient.deletionNotice.value, contains('deleted'));
       } finally {
         await second.delete();
       }
-
-      // The same synthetic account must be removable online without leaving
-      // an authenticated journal behind. This still cannot prove production
-      // erasure races involving another signed-in device.
-      final deleting = personalClient.deleteAccount();
-      await tester.pump();
-      expect(find.text('Deleting private cloud records…'), findsOneWidget);
-      await deleting.timeout(const Duration(seconds: 65));
-      await tester.pump();
-      expect(auth.currentUser, isNull);
-      expect(personalClient.deletionNotice.value, contains('deleted'));
     },
     timeout: const Timeout(Duration(minutes: 7)),
   );
