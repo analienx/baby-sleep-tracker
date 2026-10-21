@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 abstract final class SleepPalette {
@@ -60,11 +59,9 @@ abstract final class SleepTheme {
 
     return ThemeData(
       useMaterial3: true,
-      // An explicit Android font avoids OEM/phone theme handwriting fonts
-      // overriding the app's readability, especially on light surfaces.
-      fontFamily: defaultTargetPlatform == TargetPlatform.android
-          ? 'Roboto'
-          : null,
+      // Bundled Inter is deterministic offline on Android and iOS, unlike
+      // OEM-provided Roboto aliases (some devices replace them with themed fonts).
+      fontFamily: 'Inter',
       splashFactory: InkRipple.splashFactory,
       brightness: brightness,
       colorScheme: scheme,
