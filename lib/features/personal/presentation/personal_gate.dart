@@ -25,7 +25,19 @@ final class PersonalGate extends StatelessWidget {
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(28),
-                child: Text(notice, textAlign: TextAlign.center),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(notice, textAlign: TextAlign.center),
+                    if (client.auth.currentUser != null) ...[
+                      const SizedBox(height: 20),
+                      TextButton(
+                        onPressed: () => client.deletionNotice.value = null,
+                        child: const Text('Return to journal'),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -38,12 +50,12 @@ final class PersonalGate extends StatelessWidget {
           if (!deleting) return workspace!;
           // Dispose the repository listeners and disable write controls
           // before any journal erasure begins; never show stale records.
-          return const MaterialApp(
+          return MaterialApp(
             home: Scaffold(
               body: Center(
                 child: Semantics(
                   liveRegion: true,
-                  child: Text('Deleting private cloud records…'),
+                  child: const Text('Deleting private cloud records…'),
                 ),
               ),
             ),

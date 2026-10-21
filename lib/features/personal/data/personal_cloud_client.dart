@@ -96,6 +96,13 @@ final class PersonalCloudClient {
     deletionInProgress.value = true;
     try {
       await _deleteAccountOnline(password: password);
+    } catch (_) {
+      // The account view was intentionally unmounted during erasure, so its
+      // local error snackbar cannot survive. Preserve a recoverable notice.
+      deletionNotice.value ??=
+          'Account deletion could not be verified. Some records may already '
+          'be erased. Reconnect and retry from Account.';
+      rethrow;
     } finally {
       deletionInProgress.value = false;
     }

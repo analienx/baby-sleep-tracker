@@ -25,7 +25,7 @@ final class FirestoreSleepRepository
            .doc(syntheticUserId)
            .collection('operations'),
        _syntheticUserId = syntheticUserId,
-       _writeBlocked = null,
+       writeBlocked = null,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
@@ -35,14 +35,13 @@ final class FirestoreSleepRepository
   FirestoreSleepRepository.personal({
     required FirebaseFirestore firestore,
     required String uid,
-    ValueListenable<bool>? writeBlocked,
+    this.writeBlocked,
     String Function()? newId,
   }) : _operations = firestore
            .collection('personalSleep')
            .doc(uid)
            .collection('operations'),
        _syntheticUserId = uid,
-       _writeBlocked = writeBlocked,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
@@ -61,14 +60,14 @@ final class FirestoreSleepRepository
            .doc(babyId)
            .collection('operations'),
        _syntheticUserId = actorId,
-       _writeBlocked = null,
+       writeBlocked = null,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }
 
   final CollectionReference<Map<String, dynamic>> _operations;
   final String _syntheticUserId;
-  final ValueListenable<bool>? _writeBlocked;
+  final ValueListenable<bool>? writeBlocked;
   final String Function() _newId;
   final StreamController<List<SleepSession>> _sessionChanges =
       StreamController.broadcast(sync: true);
@@ -371,7 +370,7 @@ final class FirestoreSleepRepository
     await readSessions();
     // A write started before deletion must also be fenced after the await.
     // This only fences this device; production needs server-side erasure.
-    if (_writeBlocked?.value ?? false) {
+    if (writeBlocked?.value ?? false) {
       throw StateError(
         'Account deletion is in progress. Sleep edits are paused.',
       );
