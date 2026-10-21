@@ -47,7 +47,9 @@ class DeploymentTests(TestCase):
     @patch.object(app, "aapt", return_value=None)
     @patch.object(app, "adb_one", return_value="dummy")
     @patch.object(app, "present", side_effect=[True, True, True])
-    @patch.object(app, "call", return_value="")
+    @patch.object(app, "call", side_effect=lambda *args: (
+        f"{app.PKG}/com.analienx.baby_sleep_tracker.MainActivity"
+        if "resolve-activity" in args else ""))
     def test_preserves_preview_and_only_installs(self, call, *_):
         with TemporaryDirectory() as tmp:
             file = Path(tmp) / "app-debug.apk"
@@ -55,6 +57,11 @@ class DeploymentTests(TestCase):
             app.install(file, 42)
         self.assertFalse(any("uninstall" in a.args for a in call.call_args_list))
         self.assertTrue(any("install" in a.args for a in call.call_args_list))
+        # Application ID has .staging, but Kotlin activity namespace remains unsuffixed.
+        launch = [a.args for a in call.call_args_list if "am" in a.args]
+        self.assertEqual(len(launch), 1)
+        self.assertEqual(launch[0][-1],
+                         f"{app.PKG}/com.analienx.baby_sleep_tracker.MainActivity")
 
     @patch.object(app, "checked_run", return_value={"url": "https://example"})
     @patch.object(app, "aapt", return_value=None)
