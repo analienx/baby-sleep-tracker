@@ -6,6 +6,7 @@ on:
       - 'lib/**'
       - 'integration_test/personal_emulator_test.dart'
       - 'scripts/personal-e2e-android.sh'
+      - 'scripts/capture-readme-emulator.sh'
       - 'firestore.rules'
       - '.github/workflows/spark-personal-e2e.yml'
   workflow_dispatch:
@@ -67,6 +68,7 @@ jobs:
           script: |
             mkdir -p e2e-evidence
             bash -o pipefail -c 'npm exec --prefix functions -- firebase emulators:exec --project demo-little-rest --config firebase.json --only auth,firestore "bash scripts/personal-e2e-android.sh" 2>&1 | tee e2e-evidence/personal-integration.log'
+            bash scripts/capture-readme-emulator.sh
       - name: Archive E2E proof/failure diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
