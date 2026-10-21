@@ -211,9 +211,6 @@ def main(argv=None):
     dep.add_argument('--run-id', type=int, help='Use existing successful staging workflow run')
     dep.add_argument('--output', type=Path, default=DEFAULT_OUT)
     dep.add_argument('--no-install', action='store_true')
-    ins = sub.add_parser('install', help='Install verified APK from one GitHub Actions run')
-    ins.add_argument('--run-id', type=int, required=True)
-    ins.add_argument('--apk', type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == 'doctor':
@@ -228,8 +225,6 @@ def main(argv=None):
             apk = download(run_id, args.output)
             if not args.no_install:
                 install(apk, run_id)
-        elif args.command == 'install':
-            install(args.apk, args.run_id)
         return 0
     except (Blocked, ValueError, OSError, KeyError, json.JSONDecodeError) as e:
         print('DEPLOYMENT BLOCKED:', e, file=sys.stderr)

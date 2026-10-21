@@ -102,3 +102,33 @@ commit them to Git, and do not add the keystore to a public workflow artifact.
    cleanup. Audit accessibility and light/dark screens.
 5. Only promote to a separate paid production project after G2/G3 gates and
    billing consent. Never replace staging with an insecure family workaround.
+
+## Automated GitHub staging deployment (Windows + Python)
+
+The versioned helper is `scripts/staging_deploy.py`. It requires Python 3.12,
+GitHub CLI authenticated as the repository owner and ADB for phone installation.
+The workflow is registered on the default branch; builds still use the explicitly
+selected feature branch. **Never merge draft app code to enable deployment.**
+
+Run these on Zephyrus from the repository root:
+
+```powershell
+python scripts/staging_deploy.py doctor
+python scripts/staging_deploy.py configure  # ONCE: execute directly in a local terminal
+python scripts/staging_deploy.py deploy     # repeatable: CI, artifact check, install
+```
+
+`configure` securely supplies existing private local staging inputs to GitHub;
+run it locally as the account operator, not through a remote agent. Values go
+through standard input, not command arguments or terminal output. It enables
+the Actions variable **only after** all inputs have been configured. The local
+private configuration and signing files must never be added to Git.
+
+Subsequent runs use `deploy`, including over RDC once GitHub is configured.
+The command validates the exact workflow, branch and successful build, downloads
+the SHA-bound artifact into persistent Windows storage, checks Android package
+isolation and keeps the installed preview intact. `deploy --no-install` builds
+only; `deploy --run-id RUN_ID` reuses an already successful staging Actions run.
+An unavailable manually dispatched workflow is a hard failure, not a reason to
+modify `main` or fabricate a push. `python3 -m unittest discover -s scripts
+-p test_staging_deploy.py -v` checks its safety and validation behavior.

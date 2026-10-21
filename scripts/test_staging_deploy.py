@@ -37,7 +37,7 @@ class DeploymentTests(TestCase):
     def test_readiness_checks_names_not_contents(self, which, call, gh):
         gh.side_effect = [[], []]
         self.assertFalse(app.doctor())
-        self.assertTrue(any("secret" in args for args, _ in call.call_args_list))
+        self.assertTrue(any("secret" in args for args, _ in gh.call_args_list))
         # No secret mutation, only list operations, until operator runs configure.
         self.assertFalse(any(
             x.args[:3] == ("gh", "secret", "set") for x in call.call_args_list
