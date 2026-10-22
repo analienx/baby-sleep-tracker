@@ -81,6 +81,31 @@ final class PersonalCloudClient {
             'This account already has cloud sleep records. Protect it instead of switching.',
           );
         }
+        // Extra babies live outside the legacy root: an anonymous account
+        // with only a second child's journal must refuse switching too,
+        // or that child's records would be silently orphaned.
+        final babies = firestore
+            .collection('personalSleep')
+            .doc(previous.uid)
+            .collection('babies')
+            .limit(1);
+        final cachedBabies = await babies.get(
+          const GetOptions(source: Source.cache),
+        );
+        if (cachedBabies.docs.isNotEmpty ||
+            cachedBabies.metadata.hasPendingWrites) {
+          throw StateError(
+            'This device has sleep records. Protect this account first; switching would orphan them.',
+          );
+        }
+        final confirmedBabies = await babies.get(
+          const GetOptions(source: Source.server),
+        );
+        if (confirmedBabies.docs.isNotEmpty) {
+          throw StateError(
+            'This account already has cloud sleep records. Protect it instead of switching.',
+          );
+        }
       } on FirebaseException {
         throw StateError(
           'Reconnect to verify the empty account before switching identities.',
