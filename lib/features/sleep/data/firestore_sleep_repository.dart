@@ -35,13 +35,14 @@ final class FirestoreSleepRepository
   FirestoreSleepRepository.personal({
     required FirebaseFirestore firestore,
     required String uid,
+    String? actorUid,
     this.writeBlocked,
     String Function()? newId,
   }) : _operations = firestore
            .collection('personalSleep')
            .doc(uid)
            .collection('operations'),
-       _syntheticUserId = uid,
+       _syntheticUserId = actorUid ?? uid,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
   }

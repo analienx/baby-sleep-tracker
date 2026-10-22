@@ -8,12 +8,14 @@ import '../../../app/app.dart';
 import '../../../app/providers.dart';
 import '../../sleep/data/firestore_sleep_repository.dart';
 import '../data/personal_cloud_client.dart';
+import '../data/spark_family_lite_controller.dart';
 
 /// Rebuilds the repository on every identity change: never keep one user's
 /// sleep listeners alive while rendering the next user's private data.
 final class PersonalGate extends StatelessWidget {
-  const PersonalGate({super.key, required this.client});
+  const PersonalGate({super.key, required this.client, this.familyLite});
   final PersonalCloudClient client;
+  final SparkFamilyLiteController? familyLite;
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<String?>(
@@ -71,10 +73,75 @@ final class PersonalGate extends StatelessWidget {
         if (user == null) {
           return _SignedOutScreen(client: client);
         }
-        return _PersonalWorkspace(
-          key: ValueKey(user.uid),
-          client: client,
-          uid: user.uid,
+        if (familyLite == null) {
+          return _PersonalWorkspace(
+            key: ValueKey(user.uid),
+            client: client,
+            uid: user.uid,
+            journalOwnerUid: user.uid,
+          );
+        }
+        return ValueListenableBuilder<bool>(
+          valueListenable: familyLite!.membershipBlocked,
+          builder: (context, blocked, _) {
+            if (blocked) {
+              return MaterialApp(
+                home: Scaffold(
+                  body: SafeArea(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.lock_clock_rounded, size: 38),
+                            const SizedBox(height: 15),
+                            const Text(
+                              'Family access needs verification',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 22),
+                            ),
+                            const SizedBox(height: 12),
+                            ValueListenableBuilder<String?>(
+                              valueListenable: familyLite!.notice,
+                              builder: (_, message, _) => Text(
+                                message ?? 'Checking your family permission…',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton(
+                              onPressed: () =>
+                                  unawaited(familyLite!.refreshMembership()),
+                              child: const Text('Retry online'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  unawaited(familyLite!.leaveSharedJournal()),
+                              child: const Text('Use my personal journal'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return ValueListenableBuilder<String?>(
+              valueListenable: familyLite!.selectedOwnerUid,
+              builder: (context, _, _) {
+                final owner = familyLite!.ownerFor(user.uid);
+                return _PersonalWorkspace(
+                  key: ValueKey('${user.uid}:$owner'),
+                  client: client,
+                  uid: user.uid,
+                  journalOwnerUid: owner,
+                  familyLite: familyLite,
+                );
+              },
+            );
+          },
         );
       },
     ),
@@ -86,9 +153,13 @@ final class _PersonalWorkspace extends StatefulWidget {
     super.key,
     required this.client,
     required this.uid,
+    required this.journalOwnerUid,
+    this.familyLite,
   });
   final PersonalCloudClient client;
   final String uid;
+  final String journalOwnerUid;
+  final SparkFamilyLiteController? familyLite;
 
   @override
   State<_PersonalWorkspace> createState() => _PersonalWorkspaceState();
@@ -98,7 +169,8 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
   late final FirestoreSleepRepository repository =
       FirestoreSleepRepository.personal(
         firestore: widget.client.firestore,
-        uid: widget.uid,
+        uid: widget.journalOwnerUid,
+        actorUid: widget.uid,
         writeBlocked: widget.client.deletionInProgress,
       );
 
@@ -111,7 +183,10 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
   @override
   Widget build(BuildContext context) => ProviderScope(
     overrides: [sleepRepositoryProvider.overrideWithValue(repository)],
-    child: BabySleepApp(personalClient: widget.client),
+    child: BabySleepApp(
+      personalClient: widget.client,
+      sparkFamilyLite: widget.familyLite,
+    ),
   );
 }
 

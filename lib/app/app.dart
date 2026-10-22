@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../features/family/data/family_client.dart';
 import '../features/family/presentation/family_screen.dart';
 import '../features/personal/data/personal_cloud_client.dart';
+import '../features/personal/data/spark_family_lite_controller.dart';
+import '../features/personal/presentation/spark_family_lite_screen.dart';
 import '../features/personal/presentation/personal_account_screen.dart';
 import '../features/sleep/presentation/history_screen.dart';
 import '../features/sleep/presentation/today_screen.dart';
@@ -24,11 +26,13 @@ final class BabySleepApp extends StatefulWidget {
     this.family,
     this.familyFromCache = false,
     this.personalClient,
+    this.sparkFamilyLite,
   });
   final FamilyClient? familyClient;
   final FamilyContext? family;
   final bool familyFromCache;
   final PersonalCloudClient? personalClient;
+  final SparkFamilyLiteController? sparkFamilyLite;
 
   @override
   State<BabySleepApp> createState() => _BabySleepAppState();
@@ -99,6 +103,7 @@ final class _BabySleepAppState extends State<BabySleepApp> {
           familyAvailable: widget.familyClient != null && widget.family != null,
           familyFromCache: widget.familyFromCache,
           personalCloudAvailable: widget.personalClient != null,
+          sparkFamilyLiteAvailable: widget.sparkFamilyLite != null,
         ),
       ),
       if (widget.personalClient != null)
@@ -114,6 +119,12 @@ final class _BabySleepAppState extends State<BabySleepApp> {
             client: widget.familyClient!,
             family: widget.family!,
           ),
+        ),
+      if (widget.sparkFamilyLite != null)
+        GoRoute(
+          path: '/family-lite',
+          builder: (_, _) =>
+              SparkFamilyLiteScreen(client: widget.sparkFamilyLite!),
         ),
       ShellRoute(
         builder: (context, state, child) => _TabShell(

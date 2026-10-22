@@ -10,14 +10,14 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 
 **Flutter · Material 3 · Android + iOS source · Firebase**
 
-**Latest pre-release: 0.2.0-beta.1** · [Changelog](CHANGELOG.md) · [Release notes](docs/releases/0.2.0-beta.1.md)
+**Family Lite candidate: 0.2.0-beta.2 (development)** · [Changelog](CHANGELOG.md) · [Family Lite notes](docs/releases/0.2.0-beta.2.md)
 
 [See the app](#the-experience) · [Try on Android](#try-it) · [How it works](#how-it-works) · [Development](#development)
 
 </div>
 
 > [!IMPORTANT]
-> **Private preview, not a public release.** Android Firebase staging runs on a test project and has not passed full on-device privacy/recovery testing. Use **synthetic sleep data only**. An installable iPhone build and secure two-caregiver sharing are not yet available. The newest work is in [PR #31](https://github.com/analienx/baby-sleep-tracker/pull/31) (stacked on [PR #26](https://github.com/analienx/baby-sleep-tracker/pull/26)); the app code is not merged into the default branch.
+> **Private preview, not a public release.** Android Firebase staging runs on a test project and has not passed full on-device privacy/recovery testing. Use **synthetic sleep data only**. An installable iPhone build and secure two-caregiver sharing are not yet available. Spark Family Lite is implemented in [PR #32](https://github.com/analienx/baby-sleep-tracker/pull/32), stacked on the private Spark work [PR #31](https://github.com/analienx/baby-sleep-tracker/pull/31). Family Lite is undergoing two-account security testing; it is not yet deployed to real family accounts.
 
 ## The experience
 
@@ -54,7 +54,7 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 
 Android may require **Install unknown apps** permission for the browser or file manager opening the APK. It installs as `com.analienx.baby_sleep_tracker.staging` and does not overwrite the memory-only preview. No Google Play / App Store listing exists yet.
 
-**Want to test more than one phone?** The Spark build is **personal-account only**. Link a recovery email before switching devices; anonymous accounts are not reliably portable. The **family backend** has working emulator-tested onboarding, invitations, caregiver controls and shared history, but Cloud Functions cannot be activated on the current free project; a separately approved Blaze QA project and real-device review are required. Household actions are intentionally not faked in Spark.
+**Spark Family Lite (development):** each parent has a separate email-verified Firebase account. The owner approves the other parent's UID, who joins the same append-only journal without sharing a password. Firestore Security Rules enforce membership and revocation **on the free Spark project**—no Cloud Functions required. [Setup, limitations and security gates](docs/SPARK_FAMILY_LITE.md). The Family Lite signed APK is available for synthetic QA under [beta.2 staging build #39746741570](https://github.com/analienx/baby-sleep-tracker/actions/runs/39746741570). Do not treat this as a production release.
 
 ## How it works
 
@@ -66,14 +66,17 @@ flowchart LR
   D --> E["Firebase Auth"]
   D --> F["Private Firestore<br/>immutable operation journal"]
   F --> G["Native offline cache<br/>sync after reconnect"]
-  B -. "not deployed" .-> H["Future family backend<br/>trusted callable functions"]
+  D -. "opt-in development" .-> H["Spark Family Lite<br/>owner-approved UID grants"]
+  H --> F
+  B -. "optional, not deployed" .-> J["Cloud Functions F2 backend"]
 ```
 
 | Mode | Data durability | Sharing | Status |
 | --- | --- | --- | --- |
 | **Preview** | In memory only; disappears at restart | None | UI smoke-tested |
 | **Personal staging** | Firebase Auth + offline Firestore journal | One account, not a household | Emulator CI and Android install/launch verified; physical data QA pending |
-| **Family backend** | Server-authorized shared household journal | Caregiver invites/revocation | Emulator-validated code; **not deployed** (requires billing decision + security approval) |
+| **Spark Family Lite** | Shared Firestore journal, immutable revisions, account-scoped grants | Owner-approved single caregiver; no billing | Implementation and security CI in PR #32; live QA pending |
+| **F2 Cloud Functions** | Admin SDK managed household journal | Full callable invites/admin cleanup | Optional alternative, not deployed |
 
 The app uses **Flutter/Dart, Riverpod, go_router, Firebase Auth and Cloud Firestore**. No background timer is kept alive to estimate sleep time: durations derive from stored timestamps. Conflicting edits are modeled as operations, not silent last-write-wins replacement.
 
@@ -99,7 +102,7 @@ CI includes Flutter checks, visual goldens, Firebase security rules, personal/fa
 
 ## Trust, safety & release status
 
-Little Rest is for recording sleep, **not medical guidance**. The Spark test project has restrictive owner-only Firestore rules, but its client-side account-deletion guard does **not** prevent concurrent writes from another device. Physical offline/recovery/deletion testing, App Check, independent privacy/security review, iPhone QA and release signoff remain open. Family calls require a separately approved Blaze deployment; we will not imitate them with insecure client-editable membership.
+Little Rest is for recording sleep, **not medical guidance**. The live Spark test project retains owner-only personal rules until a reviewed Family Lite rollout. In Family Lite, Firestore Rules enforce owner-issued grants and an irreversible deletion fence; offline devices can still retain previously cached or exported records. Physical offline/recovery/deletion testing, App Check, independent privacy/security review, iPhone QA and release signoff remain open. The legacy F2 callable family mode would require Blaze; **Spark Family Lite does not**, and we will not replace it with insecure self-editable membership.
 
 **Font credit:** The app bundles [Inter](https://github.com/rsms/inter) under the [SIL Open Font License](assets/fonts/OFL.txt). Screenshot compositions use actual emulator pixels, not generated interfaces.
 

@@ -68,19 +68,90 @@ service cloud.firestore {
          d.endedAtUtc - d.startedAtUtc <= duration.value(24, 'h')));
     }
 
-    // Separate free Spark staging path: only the Firebase Auth identity that
-    // owns the journal can list/read/create its immutable sleep operations.
-    // DELETE is an explicit self-erasure exception for account deletion.
-    // It grants no family membership or access to any other account.
+    // Spark Family Lite — trusted owner-approved grants, NO Cloud Functions.
+    // The journal's UID is the OWNER; each operation's actorId is the *actual*
+    // authenticated user. Only a verified email caregiver may collaborate.
+    function sparkOwner(ownerUid) {
+      return signedIn() && request.auth.uid == ownerUid;
+    }
+    function sparkVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+    function sparkGrantPath(ownerUid, caregiverUid) {
+      return /databases/$(database)/documents/personalSleep/$(ownerUid)/caregivers/$(caregiverUid);
+    }
+    function sparkDeletionPath(ownerUid) {
+      return /databases/$(database)/documents/personalSleep/$(ownerUid)/control/state;
+    }
+    function sparkSharedPath(ownerUid) {
+      return /databases/$(database)/documents/personalSleep/$(ownerUid)/sharing/state;
+    }
+    function sparkActive(ownerUid) {
+      return !exists(sparkDeletionPath(ownerUid));
+    }
+    function sparkCaregiver(ownerUid) {
+      return sparkVerified() && sparkActive(ownerUid)
+        && exists(sparkGrantPath(ownerUid, request.auth.uid));
+    }
+    function sparkCollaborator(ownerUid) {
+      return sparkOwner(ownerUid) || sparkCaregiver(ownerUid);
+    }
     match /personalSleep/{uid} {
       allow read, write: if false;
+      // Permanent sharing marker: older personal-app clients cannot erase a
+      // shared journal without first committing the owner deletion fence.
+      match /sharing/{stateId} {
+        allow get: if stateId == 'state' && sparkOwner(uid);
+        allow list: if false;
+        allow create: if stateId == 'state' && sparkOwner(uid)
+          && sparkVerified() && sparkActive(uid)
+          && request.resource.data.keys().hasOnly(['enabled', 'createdAt'])
+          && request.resource.data.keys().hasAll(['enabled', 'createdAt'])
+          && request.resource.data.enabled == true
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+      match /caregivers/{caregiverUid} {
+        // Caregiver can look up ONLY their own grant. Owner can enumerate.
+        allow get: if sparkOwner(uid) || (signedIn()
+          && request.auth.uid == caregiverUid && sparkVerified()
+          && sparkActive(uid));
+        allow list: if sparkOwner(uid);
+        allow create: if sparkOwner(uid) && sparkVerified() && sparkActive(uid)
+          && exists(sparkSharedPath(uid))
+          && caregiverUid != uid
+          && caregiverUid.size() >= 8 && caregiverUid.size() <= 128
+          && request.resource.data.keys().hasOnly(['uid', 'role', 'createdAt'])
+          && request.resource.data.keys().hasAll(['uid', 'role', 'createdAt'])
+          && request.resource.data.uid == caregiverUid
+          && request.resource.data.role == 'caregiver'
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if sparkOwner(uid);
+      }
+      match /control/{controlId} {
+        // Irreversible, owner-only account-deletion fence. Once written,
+        // NO client may re-enable journal writes or erase this fence.
+        allow get: if controlId == 'state' && sparkOwner(uid);
+        allow list: if false;
+        allow create: if controlId == 'state' && sparkOwner(uid)
+          && request.resource.data.keys().hasOnly(['deleting', 'requestedAt'])
+          && request.resource.data.keys().hasAll(['deleting', 'requestedAt'])
+          && request.resource.data.deleting == true
+          && request.resource.data.requestedAt == request.time;
+        allow update, delete: if false;
+      }
       match /operations/{operationId} {
-        allow get, list: if signedIn() && request.auth.uid == uid;
-        allow create: if signedIn() && request.auth.uid == uid
+        // Owner can still read/delete during fenced online erasure; caregiver
+        // is denied immediately once the fence is committed.
+        allow get, list: if sparkCollaborator(uid);
+        allow create: if signedIn() && sparkActive(uid)
+          && sparkCollaborator(uid)
           && operationId.size() >= 1 && operationId.size() <= 128
           && validOperation(operationId);
         allow update: if false;
-        allow delete: if signedIn() && request.auth.uid == uid;
+        allow delete: if sparkOwner(uid)
+          && (!exists(sparkSharedPath(uid)) || !sparkActive(uid));
       }
     }
 

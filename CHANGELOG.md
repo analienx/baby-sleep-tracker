@@ -2,6 +2,25 @@
 
 Little Rest uses [Semantic Versioning](https://semver.org/). Mobile build metadata is appended after `+`; pre-release builds are **not** production-approved. Product screenshots and summaries describe reviewed capabilities, not deployment guarantees.
 
+## [0.2.0-beta.2] — 2026-10-22 (internal QA candidate)
+
+**Spark Family Lite; separate parent accounts without Blaze or Cloud Functions.** This version is in draft PR #32, not a public release. The previous beta.1 personal staging app remains available.
+
+### Added
+- Owner-approved caregiver sharing on a private Firestore journal, with independent verified Firebase Auth users, true per-operation actor IDs, and approve/join/revoke/leave controls.
+- Persistent locally selected family journal, always reverified online at cold start; block writes instead of silently falling back to the wrong personal journal.
+- Server-only caregiver authorization and immutable operations; permanent sharing marker prevents deletion by older personal-only clients.
+- Irreversible owner deletion fence followed by grant removal and verified journal erasure before Auth deletion.
+- Adversarial Spark Rules tests and a real two-account Flutter Android emulator integration workflow (including offline revocation).
+- [Family Lite implementation guide](docs/SPARK_FAMILY_LITE.md) and [detailed release notes](docs/releases/0.2.0-beta.2.md).
+
+### Compatibility / outstanding acceptance
+- Explicit `USE_SPARK_FAMILY_LITE=true` in the **feature-branch signed Spark staging APK**, installed and opened on a Vivo Android 16 test phone; no public distribution or production readiness signoff.
+- Only synthetic data; iPhone distribution, physical two-device verification, App Check, deletion edge cases, and independent security/privacy approval remain open.
+- Owner grants are limited to one caregiver in the UI, not by a global quota in Firestore Rules.
+
+---
+
 ## [0.2.0-beta.1] — 2026-10-21
 
 **Pre-release quality milestone; no public store distribution and no real infant data.**

@@ -67,6 +67,7 @@ jobs:
         run: |
           flutter build apk --debug --no-pub \
             --dart-define=USE_PERSONAL_STAGING=true \
+            --dart-define=USE_SPARK_FAMILY_LITE=true \
             --dart-define-from-file="$RUNNER_TEMP/personal-staging.json"
       - name: Verify staged package differs from preview
         run: |

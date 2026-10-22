@@ -308,10 +308,18 @@ final class _PersonalAccountScreenState extends State<PersonalAccountScreen> {
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'This stage stores one private sleep journal '
-                            'per account. Caregiver invitations are disabled '
-                            'until the independently reviewed family backend is available.',
+                          Text(
+                            widget.client.familyLiteEnabled
+                                ? 'Family Lite lets you approve a caregiver '
+                                      'for your journal. Deleting your own '
+                                      'account revokes grants to your journal. '
+                                      'If you joined another parent, their '
+                                      'sleep records remain in their account. '
+                                      'Offline cached copies or exports cannot '
+                                      'be recalled.'
+                                : 'This stage stores one private sleep journal '
+                                      'per account. Caregiver invitations are disabled '
+                                      'until the independently reviewed family backend is available.',
                           ),
                           const SizedBox(height: 14),
                           OutlinedButton.icon(
