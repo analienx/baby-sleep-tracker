@@ -265,14 +265,11 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
 
   void _tell(BuildContext context, String message, {bool long = false}) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: long
-            ? const Duration(seconds: 10)
-            : const Duration(seconds: 4),
-      ),
-    );
+    final duration = long
+        ? const Duration(seconds: 10)
+        : const Duration(seconds: 4);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message), duration: duration));
   }
 
   Future<void> _createBaby(BuildContext context) async {
@@ -566,7 +563,10 @@ final class _BabyNameDialogState extends State<BabyNameDialog> {
         onPressed: () => Navigator.pop(context),
         child: const Text('Cancel'),
       ),
-      FilledButton(onPressed: _submit, child: const Text('Save')),
+      FilledButton(
+        onPressed: _submit,
+        child: const Text('Save'),
+      ),
     ],
   );
 }
