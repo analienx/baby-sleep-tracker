@@ -81,16 +81,65 @@ final class PersonalGate extends StatelessWidget {
             journalOwnerUid: user.uid,
           );
         }
-        return ValueListenableBuilder<String?>(
-          valueListenable: familyLite!.selectedOwnerUid,
-          builder: (context, _, _) {
-            final owner = familyLite!.ownerFor(user.uid);
-            return _PersonalWorkspace(
-              key: ValueKey('${user.uid}:$owner'),
-              client: client,
-              uid: user.uid,
-              journalOwnerUid: owner,
-              familyLite: familyLite,
+        return ValueListenableBuilder<bool>(
+          valueListenable: familyLite!.membershipBlocked,
+          builder: (context, blocked, _) {
+            if (blocked) {
+              return MaterialApp(
+                home: Scaffold(
+                  body: SafeArea(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.lock_clock_rounded, size: 38),
+                            const SizedBox(height: 15),
+                            const Text(
+                              'Family access needs verification',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 22),
+                            ),
+                            const SizedBox(height: 12),
+                            ValueListenableBuilder<String?>(
+                              valueListenable: familyLite!.notice,
+                              builder: (_, message, _) => Text(
+                                message ?? 'Checking your family permission…',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton(
+                              onPressed: () =>
+                                  unawaited(familyLite!.refreshMembership()),
+                              child: const Text('Retry online'),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  unawaited(familyLite!.leaveSharedJournal()),
+                              child: const Text('Use my personal journal'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return ValueListenableBuilder<String?>(
+              valueListenable: familyLite!.selectedOwnerUid,
+              builder: (context, _, _) {
+                final owner = familyLite!.ownerFor(user.uid);
+                return _PersonalWorkspace(
+                  key: ValueKey('${user.uid}:$owner'),
+                  client: client,
+                  uid: user.uid,
+                  journalOwnerUid: owner,
+                  familyLite: familyLite,
+                );
+              },
             );
           },
         );

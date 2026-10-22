@@ -19,7 +19,12 @@ final class SparkFamilyLiteController {
   final SharedPreferencesAsync _prefs;
   final ValueNotifier<String?> selectedOwnerUid = ValueNotifier(null);
   final ValueNotifier<String?> notice = ValueNotifier(null);
+  // A previously joined family must not silently become a writable personal
+  // journal if membership cannot be verified after process restart.
+  final ValueNotifier<bool> membershipBlocked = ValueNotifier(false);
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _grantSubscription;
   int _revision = 0;
   String? _selectedForUid;
 
@@ -50,14 +55,25 @@ final class SparkFamilyLiteController {
 
   Future<void> _restore(String? uid) async {
     final revision = ++_revision;
+    await _grantSubscription?.cancel();
+    if (revision != _revision) return;
+    _grantSubscription = null;
+    membershipBlocked.value = true;
     _selectedForUid = uid;
-    selectedOwnerUid.value = null; // Clear previous user's journal immediately.
+    selectedOwnerUid.value = null; // Fence the previous user's identity.
     notice.value = null;
-    if (uid == null) return;
+    if (uid == null) {
+      membershipBlocked.value = false;
+      return;
+    }
     final saved = await _prefs.getString('spark-lite-owner-$uid');
-    if (saved == null || saved == uid || !_validUid(saved)) return;
+    if (revision != _revision || auth.currentUser?.uid != uid) return;
+    if (saved == null || saved == uid || !_validUid(saved)) {
+      membershipBlocked.value = false;
+      return;
+    }
     if (auth.currentUser?.emailVerified != true) {
-      notice.value = 'Verify your email to restore the shared family journal.';
+      notice.value = 'Verify your email to resume the family journal.';
       return;
     }
     try {
@@ -67,18 +83,51 @@ final class SparkFamilyLiteController {
       if (revision != _revision || auth.currentUser?.uid != uid) return;
       if (!grant.exists || grant.data()?['role'] != 'caregiver') {
         notice.value =
-            'Family access is no longer verified. Showing your own journal.';
+            'Family access was revoked. You may switch back '
+            'to your own private journal.';
         return;
       }
       selectedOwnerUid.value = saved;
+      membershipBlocked.value = false;
+      _watchGrant(saved, uid);
     } on FirebaseException {
       if (revision == _revision) {
         notice.value =
-            'Shared membership could not be verified online. '
-            'Showing your own journal until you reconnect.';
+            'Could not verify family membership online. '
+            'Reconnect to continue; no records will be written elsewhere.';
       }
     }
   }
+
+  void _watchGrant(String owner, String caregiver) {
+    unawaited(_grantSubscription?.cancel());
+    _grantSubscription = _grants(owner)
+        .doc(caregiver)
+        .snapshots(includeMetadataChanges: true)
+        .listen(
+          (grant) {
+            if (auth.currentUser?.uid != caregiver ||
+                selectedOwnerUid.value != owner)
+              return;
+            // A cached event is NOT evidence of revocation. Queued offline edits
+            // still require later server authorization before being called synced.
+            if (grant.metadata.isFromCache) return;
+            if (!grant.exists || grant.data()?['role'] != 'caregiver') {
+              membershipBlocked.value = true;
+              notice.value =
+                  'The owner revoked your access. '
+                  'Shared records are no longer available.';
+            }
+          },
+          onError: (_) {
+            membershipBlocked.value = true;
+            notice.value =
+                'Family permission could not be verified. Reconnect.';
+          },
+        );
+  }
+
+  Future<void> refreshMembership() => _restore(auth.currentUser?.uid);
 
   static bool _validUid(String uid) =>
       uid.length >= 8 &&
@@ -108,7 +157,7 @@ final class SparkFamilyLiteController {
     final members = await _grants(ownerUid)
         .limit(2)
         .get(const GetOptions(source: Source.server));
-    if (members.docs.length >= 1 && !members.docs.any((d) => d.id == uid)) {
+    if (members.docs.isNotEmpty && !members.docs.any((d) => d.id == uid)) {
       throw StateError('Family Lite currently supports one other caregiver.');
     }
     await _grants(ownerUid).doc(uid).set({
@@ -143,19 +192,26 @@ final class SparkFamilyLiteController {
     await _prefs.setString('spark-lite-owner-$uid', ownerUid);
     _selectedForUid = uid;
     selectedOwnerUid.value = ownerUid;
+    membershipBlocked.value = false;
     notice.value = null;
+    _watchGrant(ownerUid, uid);
   }
 
   Future<void> leaveSharedJournal() async {
     final uid = ownUid;
     await _prefs.remove('spark-lite-owner-$uid');
+    await _grantSubscription?.cancel();
+    _grantSubscription = null;
     _selectedForUid = uid;
     selectedOwnerUid.value = null;
+    membershipBlocked.value = false;
     notice.value = null;
   }
 
   Future<void> dispose() async {
     await _authSubscription?.cancel();
+    await _grantSubscription?.cancel();
+    membershipBlocked.dispose();
     selectedOwnerUid.dispose();
     notice.dispose();
   }
