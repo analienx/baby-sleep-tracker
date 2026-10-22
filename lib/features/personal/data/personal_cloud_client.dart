@@ -170,6 +170,43 @@ final class PersonalCloudClient {
       }
     }
 
+    if (familyLiteEnabled) {
+      // Each additional baby has its own immutable journal. Erase child
+      // operations before the profile; erasing only the legacy root would
+      // leave child data behind after removing the Auth identity.
+      final babies = firestore
+          .collection('personalSleep')
+          .doc(user.uid)
+          .collection('babies');
+      while (true) {
+        final profiles = await babies
+            .limit(50)
+            .get(const GetOptions(source: Source.server));
+        if (profiles.docs.isEmpty) break;
+        for (final baby in profiles.docs) {
+          final childOps = baby.reference.collection('operations');
+          while (true) {
+            final page = await childOps
+                .limit(200)
+                .get(const GetOptions(source: Source.server));
+            if (page.docs.isEmpty) break;
+            final batch = firestore.batch();
+            for (final operation in page.docs) {
+              batch.delete(operation.reference);
+            }
+            await batch.commit();
+          }
+          await baby.reference.delete();
+        }
+      }
+      final leftovers = await babies
+          .limit(1)
+          .get(const GetOptions(source: Source.server));
+      if (leftovers.docs.isNotEmpty) {
+        throw StateError('Baby profile erasure not verified.');
+      }
+    }
+
     final path = operations(user.uid);
     while (true) {
       final page = await path

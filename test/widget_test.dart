@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:baby_sleep_tracker/app/app.dart';
 import 'package:baby_sleep_tracker/app/providers.dart';
 import 'package:baby_sleep_tracker/app/theme.dart';
+import 'package:baby_sleep_tracker/features/personal/data/spark_baby_profiles.dart';
 import 'package:baby_sleep_tracker/features/sleep/data/preview_sleep_repository.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_ledger.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_repository.dart';
@@ -18,18 +19,27 @@ import 'package:shared_preferences_platform_interface/types.dart';
 
 import 'support/fake_clock.dart';
 
-Widget appForTest({PreviewSleepRepository? repository, FakeClock? clock}) =>
-    ProviderScope(
-      overrides: [
-        clockProvider.overrideWithValue(
-          clock ?? FakeClock(DateTime.utc(2026, 10, 19, 10)),
-        ),
-        sleepRepositoryProvider.overrideWithValue(
-          repository ?? PreviewSleepRepository(),
-        ),
-      ],
-      child: const BabySleepApp(),
-    );
+Widget appForTest({
+  PreviewSleepRepository? repository,
+  FakeClock? clock,
+  List<SparkBabyProfile>? profiles,
+  String? selectedBaby,
+  Future<void> Function(String)? onBabyChanged,
+}) => ProviderScope(
+  overrides: [
+    clockProvider.overrideWithValue(
+      clock ?? FakeClock(DateTime.utc(2026, 10, 19, 10)),
+    ),
+    sleepRepositoryProvider.overrideWithValue(
+      repository ?? PreviewSleepRepository(),
+    ),
+  ],
+  child: BabySleepApp(
+    babyProfiles: profiles,
+    selectedBabyId: selectedBaby,
+    onBabyChanged: onBabyChanged,
+  ),
+);
 
 void main() {
   setUp(() {
@@ -89,6 +99,30 @@ void main() {
       contrast(scheme.onSecondaryContainer, scheme.secondaryContainer),
       greaterThanOrEqualTo(4.5),
     );
+  });
+
+  testWidgets('Baby switcher makes the current child explicit', (tester) async {
+    final selected = <String>[];
+    await tester.pumpWidget(
+      appForTest(
+        profiles: const [
+          SparkBabyProfile.primary,
+          SparkBabyProfile(id: 'baby-two-2026', name: 'Baby 2'),
+        ],
+        selectedBaby: SparkBabyProfile.primaryId,
+        onBabyChanged: (id) async {
+          selected.add(id);
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(DropdownButton<String>), findsOneWidget);
+    expect(find.text('Baby 1'), findsWidgets);
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Baby 2').last);
+    await tester.pumpAndSettle();
+    expect(selected, ['baby-two-2026']);
   });
 
   testWidgets('Light mode keeps the active sleep panel bright and readable', (

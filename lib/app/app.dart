@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../features/family/data/family_client.dart';
 import '../features/family/presentation/family_screen.dart';
 import '../features/personal/data/personal_cloud_client.dart';
+import '../features/personal/data/spark_baby_profiles.dart';
 import '../features/personal/data/spark_family_lite_controller.dart';
 import '../features/personal/presentation/spark_family_lite_screen.dart';
 import '../features/personal/presentation/personal_account_screen.dart';
@@ -27,12 +28,22 @@ final class BabySleepApp extends StatefulWidget {
     this.familyFromCache = false,
     this.personalClient,
     this.sparkFamilyLite,
+    this.babyProfiles,
+    this.selectedBabyId,
+    this.onBabyChanged,
+    this.onAddBaby,
+    this.onRenameBaby,
   });
   final FamilyClient? familyClient;
   final FamilyContext? family;
   final bool familyFromCache;
   final PersonalCloudClient? personalClient;
   final SparkFamilyLiteController? sparkFamilyLite;
+  final List<SparkBabyProfile>? babyProfiles;
+  final String? selectedBabyId;
+  final Future<void> Function(String)? onBabyChanged;
+  final Future<void> Function(BuildContext)? onAddBaby;
+  final Future<void> Function(BuildContext)? onRenameBaby;
 
   @override
   State<BabySleepApp> createState() => _BabySleepAppState();
@@ -130,6 +141,11 @@ final class _BabySleepAppState extends State<BabySleepApp> {
         builder: (context, state, child) => _TabShell(
           currentPath: state.uri.path,
           familyFromCache: widget.familyFromCache,
+          babyProfiles: widget.babyProfiles,
+          selectedBabyId: widget.selectedBabyId,
+          onBabyChanged: widget.onBabyChanged,
+          onAddBaby: widget.onAddBaby,
+          onRenameBaby: widget.onRenameBaby,
           child: child,
         ),
         routes: [
@@ -170,7 +186,17 @@ final class _TabShell extends StatelessWidget {
     required this.currentPath,
     required this.child,
     required this.familyFromCache,
+    this.babyProfiles,
+    this.selectedBabyId,
+    this.onBabyChanged,
+    this.onAddBaby,
+    this.onRenameBaby,
   });
+  final List<SparkBabyProfile>? babyProfiles;
+  final String? selectedBabyId;
+  final Future<void> Function(String)? onBabyChanged;
+  final Future<void> Function(BuildContext)? onAddBaby;
+  final Future<void> Function(BuildContext)? onRenameBaby;
   final String currentPath;
   final Widget child;
   final bool familyFromCache;
@@ -194,6 +220,58 @@ final class _TabShell extends StatelessWidget {
                   'Offline family cache — membership is not verified. '
                   'Previously downloaded records may be stale.',
                   textAlign: TextAlign.center,
+                ),
+              ),
+            if (babyProfiles != null && selectedBabyId != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 5),
+                child: Row(
+                  children: [
+                    const Icon(Icons.child_care_rounded, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value:
+                              babyProfiles!.any((p) => p.id == selectedBabyId)
+                              ? selectedBabyId
+                              : null,
+                          hint: const Text('Select a baby'),
+                          items: [
+                            for (final baby in babyProfiles!)
+                              DropdownMenuItem<String>(
+                                value: baby.id,
+                                child: Text(
+                                  baby.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: onBabyChanged == null
+                              ? null
+                              : (id) {
+                                  if (id != null) {
+                                    unawaited(onBabyChanged!(id));
+                                  }
+                                },
+                        ),
+                      ),
+                    ),
+                    if (onRenameBaby != null)
+                      IconButton(
+                        tooltip: 'Rename selected baby',
+                        onPressed: () => unawaited(onRenameBaby!(context)),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                    if (onAddBaby != null)
+                      IconButton(
+                        tooltip: 'Add another baby',
+                        onPressed: () => unawaited(onAddBaby!(context)),
+                        icon: const Icon(Icons.person_add_alt_1_rounded),
+                      ),
+                  ],
                 ),
               ),
             Expanded(child: child),

@@ -36,12 +36,20 @@ final class FirestoreSleepRepository
     required FirebaseFirestore firestore,
     required String uid,
     String? actorUid,
+    String babyId = 'primary',
     this.writeBlocked,
     String Function()? newId,
-  }) : _operations = firestore
-           .collection('personalSleep')
-           .doc(uid)
-           .collection('operations'),
+  }) : _operations = babyId == 'primary'
+           ? firestore
+                 .collection('personalSleep')
+                 .doc(uid)
+                 .collection('operations')
+           : firestore
+                 .collection('personalSleep')
+                 .doc(uid)
+                 .collection('babies')
+                 .doc(babyId)
+                 .collection('operations'),
        _syntheticUserId = actorUid ?? uid,
        _newId = newId ?? const Uuid().v4 {
     _subscribe();
