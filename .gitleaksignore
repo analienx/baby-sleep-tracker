@@ -1,0 +1,6 @@
+# Firebase Web SDK apiKey is a public client identifier by design; it does NOT
+# authorize Firestore reads/writes (Rules and App Check do that). This single
+# known fingerprint is the ONLY exception. Never whitelist service accounts,
+# Android signing files, secrets, or other source paths.
+# https://firebase.google.com/docs/projects/api-keys
+75e08e65c436506c58cfe4b4a0f7181411423908:web/firebase-staging.defines.json:gcp-api-key:3
