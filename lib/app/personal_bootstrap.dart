@@ -42,18 +42,14 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
   final auth = FirebaseAuth.instanceFor(app: app);
   final firestore = FirebaseFirestore.instanceFor(app: app);
   if (kIsWeb) {
-    // Safari disables Firestore disk persistence by default. Fail closed when
-    // durable IndexedDB is unavailable: do not pretend offline taps are safe.
-    try {
-      await firestore.enablePersistence(
-        const PersistenceSettings(synchronizeTabs: true),
-      );
-    } on FirebaseException {
-      throw StateError(
-        'Offline storage is unavailable. Use a normal Safari Home Screen '
-        'installation and enable website storage before recording sleep.',
-      );
-    }
+    // FlutterFire 7 configures persistent IndexedDB via Settings rather than
+    // the removed enablePersistence method. Shared tabs avoid lock failures.
+    // Safari may still evict site storage: UI must not promise guaranteed
+    // offline durability; physical-device QA must verify the storage path.
+    firestore.settings = const Settings(
+      persistenceEnabled: true,
+      webPersistentTabManager: WebPersistentMultipleTabManager(),
+    );
   } else {
     firestore.settings = const Settings(persistenceEnabled: true);
   }
