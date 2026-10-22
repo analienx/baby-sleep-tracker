@@ -50,6 +50,18 @@ test('Spark Family Lite: verified caregiver grant, revocation, and durable delet
     await assertFails(owner.doc(grant).set({
       uid: strangerId, role:'caregiver', createdAt:at,
     }));
+    // Owner must permanently mark a journal as shared before any grant.
+    // That marker makes old personal-only app erasure fail closed.
+    await assertFails(caregiver.doc(scope+'/sharing/state').set({enabled:true}));
+    await assertFails(owner.doc(grant).set({
+      uid:carerId, role:'caregiver', createdAt:serverTimestamp(),
+    }));
+    await assertSucceeds(owner.doc(scope+'/sharing/state').set({
+      enabled:true, createdAt:serverTimestamp(),
+    }));
+    await assertFails(owner.doc(scope+'/sharing/state').delete());
+    await assertFails(owner.doc(scope+'/sharing/state').update({enabled:false}));
+    await assertFails(owner.doc(ops+'/one').delete());
     // The only writer of grants is a verified owner; timestamp must
     // equal server request time, not be forged by the mobile app.
     await assertSucceeds(owner.doc(grant).set({

@@ -111,7 +111,9 @@ final class SparkFamilyLiteController {
               return;
             // A cached event is NOT evidence of revocation. Queued offline edits
             // still require later server authorization before being called synced.
-            if (grant.metadata.isFromCache) return;
+            if (grant.metadata.isFromCache) {
+              return;
+            }
             if (!grant.exists || grant.data()?['role'] != 'caregiver') {
               membershipBlocked.value = true;
               notice.value =
@@ -152,6 +154,22 @@ final class SparkFamilyLiteController {
     }
     if (ownerFor(ownerUid) != ownerUid) {
       throw StateError('Only your own journal can grant caregiver access.');
+    }
+    // Permanent marker also protects this shared journal from deletion by
+    // old personal-only app versions (which lack cross-device write fences).
+    final marker = firestore
+        .collection('personalSleep')
+        .doc(ownerUid)
+        .collection('sharing')
+        .doc('state');
+    final existingMarker = await marker.get(
+      const GetOptions(source: Source.server),
+    );
+    if (!existingMarker.exists) {
+      await marker.set({
+        'enabled': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     }
     // Cloud-confirm membership listing; do not silently count an offline cache.
     final members = await _grants(ownerUid)

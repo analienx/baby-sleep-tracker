@@ -83,6 +83,9 @@ service cloud.firestore {
     function sparkDeletionPath(ownerUid) {
       return /databases/$(database)/documents/personalSleep/$(ownerUid)/control/state;
     }
+    function sparkSharedPath(ownerUid) {
+      return /databases/$(database)/documents/personalSleep/$(ownerUid)/sharing/state;
+    }
     function sparkActive(ownerUid) {
       return !exists(sparkDeletionPath(ownerUid));
     }
@@ -95,6 +98,19 @@ service cloud.firestore {
     }
     match /personalSleep/{uid} {
       allow read, write: if false;
+      // Permanent sharing marker: older personal-app clients cannot erase a
+      // shared journal without first committing the owner deletion fence.
+      match /sharing/{stateId} {
+        allow get: if stateId == 'state' && sparkOwner(uid);
+        allow list: if false;
+        allow create: if stateId == 'state' && sparkOwner(uid)
+          && sparkVerified() && sparkActive(uid)
+          && request.resource.data.keys().hasOnly(['enabled', 'createdAt'])
+          && request.resource.data.keys().hasAll(['enabled', 'createdAt'])
+          && request.resource.data.enabled == true
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
       match /caregivers/{caregiverUid} {
         // Caregiver can look up ONLY their own grant. Owner can enumerate.
         allow get: if sparkOwner(uid) || (signedIn()
@@ -102,6 +118,7 @@ service cloud.firestore {
           && sparkActive(uid));
         allow list: if sparkOwner(uid);
         allow create: if sparkOwner(uid) && sparkVerified() && sparkActive(uid)
+          && exists(sparkSharedPath(uid))
           && caregiverUid != uid
           && caregiverUid.size() >= 8 && caregiverUid.size() <= 128
           && request.resource.data.keys().hasOnly(['uid', 'role', 'createdAt'])
@@ -133,7 +150,8 @@ service cloud.firestore {
           && operationId.size() >= 1 && operationId.size() <= 128
           && validOperation(operationId);
         allow update: if false;
-        allow delete: if sparkOwner(uid);
+        allow delete: if sparkOwner(uid)
+          && (!exists(sparkSharedPath(uid)) || !sparkActive(uid));
       }
     }
 
