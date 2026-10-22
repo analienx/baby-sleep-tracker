@@ -162,9 +162,13 @@ service cloud.firestore {
         // Profiles may only be removed during fenced full account erasure.
         allow delete: if sparkOwner(uid) && !sparkActive(uid);
         match /operations/{operationId} {
-          allow get, list: if sparkCollaborator(uid)
+          // The special "primary" baby always writes to the legacy root.
+          // Deny a competing nested primary journal to avoid split histories.
+          allow get, list: if babyId != 'primary'
+            && sparkCollaborator(uid)
             && exists(/databases/$(database)/documents/personalSleep/$(uid)/babies/$(babyId));
-          allow create: if sparkActive(uid) && sparkCollaborator(uid)
+          allow create: if babyId != 'primary'
+            && sparkActive(uid) && sparkCollaborator(uid)
             && exists(/databases/$(database)/documents/personalSleep/$(uid)/babies/$(babyId))
             && operationId.size() >= 1 && operationId.size() <= 128
             && validOperation(operationId);
