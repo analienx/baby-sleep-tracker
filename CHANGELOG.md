@@ -15,7 +15,7 @@ Little Rest uses [Semantic Versioning](https://semver.org/). Mobile build metada
 - [Family Lite implementation guide](docs/SPARK_FAMILY_LITE.md) and [detailed release notes](docs/releases/0.2.0-beta.2.md).
 
 ### Compatibility / outstanding acceptance
-- QA-only compile-time flag `USE_SPARK_FAMILY_LITE=true`; no live Family Lite rollout or production readiness signoff has been granted yet.
+- Explicit `USE_SPARK_FAMILY_LITE=true` in the **feature-branch signed Spark staging APK**, installed and opened on a Vivo Android 16 test phone; no public distribution or production readiness signoff.
 - Only synthetic data; iPhone distribution, physical two-device verification, App Check, deletion edge cases, and independent security/privacy approval remain open.
 - Owner grants are limited to one caregiver in the UI, not by a global quota in Firestore Rules.
 

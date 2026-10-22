@@ -94,20 +94,20 @@ def configure(root):
     doctor(required=True)
 
 
-def branch_sha():
-    obj = gh_json('api', f'repos/{REPO}/git/ref/heads/{BRANCH}')
+def branch_sha(branch=BRANCH):
+    obj = gh_json('api', f'repos/{REPO}/git/ref/heads/{branch}')
     sha = obj['object']['sha']
     if not re.fullmatch('[0-9a-f]{40}', sha):
         raise Blocked('Invalid branch SHA')
     return sha
 
 
-def trigger():
+def trigger(branch=BRANCH):
     doctor(required=True)
-    sha = branch_sha()
+    sha = branch_sha(branch)
     before = datetime.now(timezone.utc) - timedelta(seconds=12)
     try:
-        call('gh', 'workflow', 'run', WORKFLOW, '-R', REPO, '--ref', BRANCH)
+        call('gh', 'workflow', 'run', WORKFLOW, '-R', REPO, '--ref', branch)
     except Blocked as exc:
         raise Blocked('Manual dispatch unavailable: GitHub requires the workflow on '
                       'the default branch. Do not merge unapproved feature code. '
@@ -115,7 +115,7 @@ def trigger():
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
         runs = gh_json('run', 'list', '-R', REPO, '--workflow', WORKFLOW,
-                       '--branch', BRANCH, '--limit', '30', '--json',
+                       '--branch', branch, '--limit', '30', '--json',
                        'databaseId,headSha,event,createdAt')
         eligible = [r for r in runs if r['headSha'] == sha and
                     r['event'] == 'workflow_dispatch' and
@@ -126,17 +126,17 @@ def trigger():
     raise Blocked('Cannot resolve dispatched run; inspect Actions before retrying.')
 
 
-def checked_run(run_id):
+def checked_run(run_id, branch=BRANCH):
     r = gh_json('run', 'view', str(run_id), '-R', REPO, '--json',
                 'status,conclusion,headSha,headBranch,workflowName,url')
     if (r['status'], r['conclusion'], r['headBranch'], r['workflowName']) != (
-            'completed', 'success', BRANCH, 'Spark staging Android'):
+            'completed', 'success', branch, 'Spark staging Android'):
         raise Blocked('Run is not a successful staging build on the expected branch.')
     return r
 
 
-def download(run_id, out):
-    data = checked_run(run_id)
+def download(run_id, out, branch=BRANCH):
+    data = checked_run(run_id, branch)
     artifact = f"little-rest-spark-staging-debug-{data['headSha']}"
     raw = gh_json('api', f'repos/{REPO}/actions/runs/{run_id}/artifacts')
     matches = [a for a in raw.get('artifacts', []) if a['name'] == artifact and not a['expired']]
@@ -179,8 +179,8 @@ def aapt():
     return str(sorted(paths)[-1]) if paths else None
 
 
-def install(apk, run_id):
-    run_info = checked_run(run_id)  # require GitHub's aapt package assertion
+def install(apk, run_id, branch=BRANCH):
+    run_info = checked_run(run_id, branch)  # require GitHub's aapt package assertion
     if apk.name != 'app-debug.apk' or not apk.is_file():
         raise Blocked('APK name or path unexpected.')
     tool = aapt()
@@ -217,6 +217,8 @@ def main(argv=None):
     cfg.add_argument('--private-dir', type=Path, default=DEFAULT_PRIVATE)
     dep = sub.add_parser('deploy', help='Trigger, verify, download and install')
     dep.add_argument('--run-id', type=int, help='Use existing successful staging workflow run')
+    dep.add_argument('--branch', choices=[BRANCH, 'feat/spark-family-lite'],
+                     default=BRANCH, help='Reviewed Spark staging build branch')
     dep.add_argument('--output', type=Path, default=DEFAULT_OUT)
     dep.add_argument('--no-install', action='store_true')
     args = parser.parse_args(argv)
@@ -226,13 +228,13 @@ def main(argv=None):
         if args.command == 'configure':
             configure(args.private_dir)
         elif args.command == 'deploy':
-            run_id = args.run_id if args.run_id else trigger()
+            run_id = args.run_id if args.run_id else trigger(args.branch)
             if not args.run_id:
                 print('Watching GitHub staging run', run_id)
                 call('gh', 'run', 'watch', str(run_id), '-R', REPO, '--exit-status')
-            apk = download(run_id, args.output)
+            apk = download(run_id, args.output, args.branch)
             if not args.no_install:
-                install(apk, run_id)
+                install(apk, run_id, args.branch)
         return 0
     except (Blocked, ValueError, OSError, KeyError, json.JSONDecodeError) as e:
         print('DEPLOYMENT BLOCKED:', e, file=sys.stderr)

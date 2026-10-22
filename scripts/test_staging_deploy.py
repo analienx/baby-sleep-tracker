@@ -25,6 +25,16 @@ class DeploymentTests(TestCase):
         }
         gh.return_value = good
         self.assertEqual(app.checked_run(41), good)
+        # Family Lite can only reuse an artifact built from the explicitly
+        # selected reviewed feature branch, never from another branch.
+        family = {**good, "headBranch": "feat/spark-family-lite"}
+        gh.return_value = family
+        self.assertEqual(
+            app.checked_run(42, "feat/spark-family-lite"), family
+        )
+        with self.assertRaises(app.Blocked):
+            app.checked_run(42)
+        gh.return_value = good
         for change in ({"conclusion": "skipped"}, {"headBranch": "main"},
                        {"workflowName": "Flutter CI"}, {"status": "in_progress"}):
             gh.return_value = {**good, **change}

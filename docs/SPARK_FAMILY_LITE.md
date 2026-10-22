@@ -1,8 +1,8 @@
 # Spark Family Lite — secure two-parent sharing, no billing
 
-**Implementation:** [PR #32](https://github.com/analienx/baby-sleep-tracker/pull/32) · **Status:** development-only, not deployed, synthetic data · **Architecture:** [ADR-0002](ADR-0002-spark-family-lite.md).
+**Implementation:** [PR #32](https://github.com/analienx/baby-sleep-tracker/pull/32) · **Status:** deployed to *Spark staging only* (Rules + signed Android QA APK), **not production-approved**, synthetic data · **Architecture:** [ADR-0002](ADR-0002-spark-family-lite.md).
 
-This is the **only active family-sharing track**. Existing F2 Cloud Functions remain in the repository for compatibility and as a potential future option, but are not required by Family Lite. The currently deployed Spark personal stage remains unchanged until the Firestore adversarial Rules tests and two-account Android emulator suite pass.
+This is the **only active family-sharing track**. Existing F2 Cloud Functions remain in the repository for compatibility and as a potential future option, but are not required by Family Lite. The Spark staging Rules were deployed to `little-rest-stage-jh-261020` on 2026-10-22 after adversarial security and Android two-account emulator tests passed. The signed `0.2.0-beta.2+3` QA APK was installed on Vivo Android 16 with existing staging app data preserved. Real two-phone family acceptance and independent security review remain open.
 
 ## What the family sees
 
@@ -35,7 +35,7 @@ GitHub Actions:
 - `spark-family-lite-e2e.yml` boots disposable Android / Auth / Firestore emulators and exercises **two separate signed-in Firebase users**, shared operations, server revocation of offline pending edits and the server deletion fence.
 - `flutter-ci.yml` checks analysis and unit/widget tests; existing personal and family emulators must not regress.
 
-No local Java is needed. Do **not** enable the flag in the real staging Android workflow, deploy `firestore.rules`, or publish an installable Family Lite APK until these checks are green and reviewed. The existing personal staging APK intentionally remains separate during development.
+No local Java is needed. The test-only Spark project now runs the reviewed sharing Rules, and the `feat/spark-family-lite` signed Android workflow builds with the explicit flag. Personal-only APKs from other branches remain separate development outputs; no application-store release exists. Never deploy these experimental Rules to a different Firebase project without its own security gates.
 
 ## Current limitations and acceptance still needed
 
@@ -45,4 +45,4 @@ No local Java is needed. Do **not** enable the flag in the real staging Android 
 - Firestore alone cannot run TTL cleanup, revoke bytes already cached/exported by an offline phone, or forcibly remove Firebase Auth users belonging to other accounts.
 - Independent two-device real Android/iPhone QA, password reset and restore, account deletion under concurrency, App Check enforcement, privacy review and owner release acceptance are **not yet complete**.
 
-For now: only synthetic QA data. Existing personal staging must continue working with its original no-family build.
+For now: **synthetic QA data only.** Previously recorded personal staging sessions remain preserved in the upgraded installation. The original in-memory preview channel stays independent.

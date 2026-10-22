@@ -54,7 +54,7 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 
 Android may require **Install unknown apps** permission for the browser or file manager opening the APK. It installs as `com.analienx.baby_sleep_tracker.staging` and does not overwrite the memory-only preview. No Google Play / App Store listing exists yet.
 
-**Spark Family Lite (development):** each parent has a separate email-verified Firebase account. The owner approves the other parent's UID, who joins the same append-only journal without sharing a password. Firestore Security Rules enforce membership and revocation **on the free Spark project**—no Cloud Functions required. [Setup, limitations and security gates](docs/SPARK_FAMILY_LITE.md). The public Android download above still refers to the personal-only build until staging QA approves Family Lite.
+**Spark Family Lite (development):** each parent has a separate email-verified Firebase account. The owner approves the other parent's UID, who joins the same append-only journal without sharing a password. Firestore Security Rules enforce membership and revocation **on the free Spark project**—no Cloud Functions required. [Setup, limitations and security gates](docs/SPARK_FAMILY_LITE.md). The Family Lite signed APK is available for synthetic QA under [beta.2 staging build #39746741570](https://github.com/analienx/baby-sleep-tracker/actions/runs/39746741570). Do not treat this as a production release.
 
 ## How it works
 
