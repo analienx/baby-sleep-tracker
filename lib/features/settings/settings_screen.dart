@@ -20,6 +20,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
     required this.onAppearanceChanged,
     this.familyAvailable = false,
     this.personalCloudAvailable = false,
+    this.sparkFamilyLiteAvailable = false,
     this.familyFromCache = false,
     super.key,
   });
@@ -28,6 +29,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   final Future<void> Function(ThemeMode) onAppearanceChanged;
   final bool familyAvailable;
   final bool personalCloudAvailable;
+  final bool sparkFamilyLiteAvailable;
   final bool familyFromCache;
 
   @override
@@ -188,30 +190,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 14),
                 _SettingsSection(
                   title: strings.familyHeading,
-                  description: widget.familyAvailable
+                  description: widget.sparkFamilyLiteAvailable
+                      ? 'Separate accounts. One owner-approved shared journal on Firebase Spark.'
+                      : widget.familyAvailable
                       ? strings.familyReady
                       : strings.familyNotReady,
                   child: Column(
                     children: [
                       ListTile(
-                        enabled: widget.familyAvailable,
+                        enabled:
+                            widget.familyAvailable ||
+                            widget.sparkFamilyLiteAvailable,
                         leading: const Icon(Icons.person_add_alt_outlined),
                         title: Text(strings.familyInvite),
-                        subtitle: widget.familyAvailable
+                        subtitle:
+                            widget.familyAvailable ||
+                                widget.sparkFamilyLiteAvailable
                             ? null
                             : Text(strings.familyUnavailable),
-                        onTap: widget.familyAvailable
+                        onTap: widget.sparkFamilyLiteAvailable
+                            ? () => context.push('/family-lite')
+                            : widget.familyAvailable
                             ? () => context.push('/family')
                             : null,
                       ),
                       ListTile(
-                        enabled: widget.familyAvailable,
+                        enabled:
+                            widget.familyAvailable ||
+                            widget.sparkFamilyLiteAvailable,
                         leading: const Icon(Icons.group_outlined),
                         title: Text(strings.familyManage),
-                        subtitle: widget.familyAvailable
+                        subtitle:
+                            widget.familyAvailable ||
+                                widget.sparkFamilyLiteAvailable
                             ? null
                             : Text(strings.familyUnavailable),
-                        onTap: widget.familyAvailable
+                        onTap: widget.sparkFamilyLiteAvailable
+                            ? () => context.push('/family-lite')
+                            : widget.familyAvailable
                             ? () => context.push('/family')
                             : null,
                       ),

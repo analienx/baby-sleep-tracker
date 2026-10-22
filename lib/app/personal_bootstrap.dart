@@ -13,6 +13,8 @@ import '../features/personal/data/personal_cloud_client.dart';
 /// Family cloud mode continues to require the separately reviewed callables.
 const usePersonalStaging = bool.fromEnvironment('USE_PERSONAL_STAGING');
 const usePersonalEmulator = bool.fromEnvironment('USE_PERSONAL_EMULATOR');
+// Optional Spark Family Lite rollout; disabled for live staging until Rule QA.
+const useSparkFamilyLite = bool.fromEnvironment('USE_SPARK_FAMILY_LITE');
 
 Future<PersonalCloudClient> connectPersonalCloud() async {
   if (usePersonalStaging == usePersonalEmulator ||
@@ -54,5 +56,9 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
   if (auth.currentUser == null) {
     await auth.signInAnonymously();
   }
-  return PersonalCloudClient(auth: auth, firestore: firestore);
+  return PersonalCloudClient(
+    auth: auth,
+    firestore: firestore,
+    familyLiteEnabled: useSparkFamilyLite,
+  );
 }

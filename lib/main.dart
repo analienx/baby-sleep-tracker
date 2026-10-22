@@ -8,6 +8,7 @@ import 'app/personal_bootstrap.dart';
 import 'app/providers.dart';
 import 'features/family/presentation/family_gate.dart';
 import 'features/personal/presentation/personal_gate.dart';
+import 'features/personal/data/spark_family_lite_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +32,16 @@ Future<void> main() async {
   if (usePersonalStaging || usePersonalEmulator) {
     try {
       final personalClient = await connectPersonalCloud();
-      runApp(PersonalGate(client: personalClient));
+      if (useSparkFamilyLite) {
+        final lite = SparkFamilyLiteController(
+          auth: personalClient.auth,
+          firestore: personalClient.firestore,
+        );
+        await lite.initialize();
+        runApp(PersonalGate(client: personalClient, familyLite: lite));
+      } else {
+        runApp(PersonalGate(client: personalClient));
+      }
     } catch (_) {
       runApp(
         const MaterialApp(

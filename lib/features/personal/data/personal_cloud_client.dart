@@ -5,10 +5,15 @@ import 'package:flutter/foundation.dart';
 /// Spark-compatible, private-per-UID storage. No client-side family
 /// membership or invitation mutations are permitted.
 final class PersonalCloudClient {
-  PersonalCloudClient({required this.auth, required this.firestore});
+  PersonalCloudClient({
+    required this.auth,
+    required this.firestore,
+    this.familyLiteEnabled = false,
+  });
 
   final FirebaseAuth auth;
   final FirebaseFirestore firestore;
+  final bool familyLiteEnabled;
   final ValueNotifier<String?> deletionNotice = ValueNotifier(null);
   // While deleting, unmount the sleep workspace to prevent local UI writes
   // racing with self-erasure. Other devices still require server fencing.
@@ -130,6 +135,40 @@ final class PersonalCloudClient {
         'Pending offline edits must sync before account deletion. Reconnect and retry.',
       ),
     );
+
+    if (familyLiteEnabled) {
+      // Server-acknowledged irreversible fence prevents other devices from
+      // appending while this owner is erasing their journal.
+      final root = firestore.collection('personalSleep').doc(user.uid);
+      final fence = root.collection('control').doc('state');
+      final existing = await fence.get(const GetOptions(source: Source.server));
+      if (!existing.exists) {
+        await fence.set({
+          'deleting': true,
+          'requestedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      // A revoked member cannot read/write the cloud journal. Delete every
+      // grant before deleting operations; own Auth removal is always last.
+      final grants = root.collection('caregivers');
+      while (true) {
+        final page = await grants
+            .limit(100)
+            .get(const GetOptions(source: Source.server));
+        if (page.docs.isEmpty) break;
+        final batch = firestore.batch();
+        for (final member in page.docs) {
+          batch.delete(member.reference);
+        }
+        await batch.commit();
+      }
+      final verified = await grants
+          .limit(1)
+          .get(const GetOptions(source: Source.server));
+      if (verified.docs.isNotEmpty) {
+        throw StateError('Caregiver revocation could not be verified.');
+      }
+    }
 
     final path = operations(user.uid);
     while (true) {
