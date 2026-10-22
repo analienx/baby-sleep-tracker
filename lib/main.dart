@@ -51,8 +51,13 @@ Future<void> main() async {
                 child: Padding(
                   padding: EdgeInsets.all(24),
                   child: Text(
-                    'Private cloud could not connect. No sleep data was recorded. '
-                    'Please check your connection and staging Firebase configuration.',
+                    useIosPwa
+                        ? 'Little Rest could not safely open Firebase or '
+                              'browser storage. Check your connection, allow '
+                              'Safari website data, and reopen from the Home '
+                              'Screen. No sleep was recorded.'
+                        : 'Private cloud could not connect. No sleep data was recorded. '
+                              'Please check your connection and staging Firebase configuration.',
                   ),
                 ),
               ),

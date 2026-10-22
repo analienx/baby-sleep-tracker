@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#181C2E">
+  <meta name="description" content="Little Rest — a calm and private baby sleep journal shared by two caregivers.">
+  <meta name="application-name" content="Little Rest">
+  <meta name="apple-mobile-web-app-title" content="Little Rest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <title>Little Rest</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #181C2E; overflow: hidden; }
+    #loading { position: fixed; inset: 0; display: grid; place-items: center;
+      background: #181C2E; color: #DDD3F5; font: 500 17px system-ui, sans-serif;
+      letter-spacing: .015em; z-index: -1; }
+  </style>
+</head>
+<body>
+  <div id="loading" role="status" aria-label="Loading Little Rest">☾ &nbsp; Little Rest</div>
+  <script src="storage_probe.js"></script>
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/pwa-sw.js', { scope: '/' })
+          .catch(function () { /* online-only until the next launch */ });
+      });
+    }
+  </script>
+</body>
+</html>

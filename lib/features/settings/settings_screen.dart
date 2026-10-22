@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -168,6 +168,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 ),
+                if (kIsWeb && widget.sparkFamilyLiteAvailable) ...[
+                  const SizedBox(height: 14),
+                  _SettingsSection(
+                    title: 'Install on iPhone',
+                    description:
+                        'In Safari, tap Share → Add to Home Screen → '
+                        'Open as Web App. Then open Little Rest from its icon.',
+                    child: const ListTile(
+                      leading: Icon(Icons.add_to_home_screen_rounded),
+                      title: Text('No App Store or weekly renewal'),
+                      subtitle: Text(
+                        'Protect your account with a verified '
+                        'email before changing phones. iPhone may clear '
+                        'offline website data; wait for Synced before '
+                        'closing the app.',
+                      ),
+                    ),
+                  ),
+                ],
                 if (widget.personalCloudAvailable) ...[
                   const SizedBox(height: 14),
                   _SettingsSection(

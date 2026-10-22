@@ -71,6 +71,12 @@ Future<FamilyClient> connectFamily() async {
 
 FirebaseOptions configuredFirebaseOptions() {
   const project = String.fromEnvironment('FIREBASE_PROJECT_ID');
+  const webKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
+  const webApp = String.fromEnvironment('FIREBASE_WEB_APP_ID');
+  const webAuthDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
+  const webMeasurementId = String.fromEnvironment(
+    'FIREBASE_WEB_MEASUREMENT_ID',
+  );
   // Firebase generates independently restricted API keys for Android and iOS.
   const androidApiKey = String.fromEnvironment('FIREBASE_ANDROID_API_KEY');
   const iosApiKey = String.fromEnvironment('FIREBASE_IOS_API_KEY');
@@ -78,6 +84,25 @@ FirebaseOptions configuredFirebaseOptions() {
   const androidApp = String.fromEnvironment('FIREBASE_ANDROID_APP_ID');
   const iosApp = String.fromEnvironment('FIREBASE_IOS_APP_ID');
   const iosBundle = String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID');
+  if (kIsWeb) {
+    if ([
+      project,
+      webKey,
+      webApp,
+      webAuthDomain,
+      sender,
+    ].any((value) => value.isEmpty)) {
+      throw StateError('Web Firebase registration is incomplete.');
+    }
+    return FirebaseOptions(
+      projectId: project,
+      apiKey: webKey,
+      appId: webApp,
+      authDomain: webAuthDomain,
+      messagingSenderId: sender,
+      measurementId: webMeasurementId.isEmpty ? null : webMeasurementId,
+    );
+  }
   if ([
     project,
     androidApiKey,
