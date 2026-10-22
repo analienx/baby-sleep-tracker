@@ -256,41 +256,23 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
     BuildContext dialogContext, {
     required String title,
     String initial = '',
-  }) async {
-    final name = TextEditingController(text: initial);
-    try {
-      return await showDialog<String>(
-        context: dialogContext,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: name,
-            autofocus: true,
-            maxLength: 40,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(labelText: 'Baby name'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, name.text),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      name.dispose();
-    }
+  }) {
+    return showDialog<String>(
+      context: dialogContext,
+      builder: (_) => BabyNameDialog(title: title, initial: initial),
+    );
   }
 
-  void _tell(BuildContext context, String message) {
+  void _tell(BuildContext context, String message, {bool long = false}) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: long
+            ? const Duration(seconds: 10)
+            : const Duration(seconds: 4),
+      ),
+    );
   }
 
   Future<void> _createBaby(BuildContext context) async {
@@ -332,7 +314,11 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
       await _babies.rename(id, name);
     } catch (_) {
       if (context.mounted) {
-        _tell(context, 'Could not rename the baby. Check the connection.');
+        _tell(
+          context,
+          'Could not rename the baby. Check the connection.',
+          long: true,
+        );
       }
     }
   }
@@ -524,5 +510,62 @@ final class _SignedOutScreenState extends State<_SignedOutScreen> {
         ),
       ),
     ),
+  );
+}
+/// Name prompt for adding or renaming a baby. The text controller is owned
+/// by the dialog state and disposed only after the route is removed:
+/// disposing it in the caller's finally (on dialog completion) raced the
+/// exit animation and flashed a used-after-disposed error. Pressing the
+/// keyboard Enter/Done action submits intentionally, exactly like Save.
+final class BabyNameDialog extends StatefulWidget {
+  const BabyNameDialog({
+    super.key,
+    required this.title,
+    required this.initial,
+  });
+
+  final String title;
+  final String initial;
+
+  @override
+  State<BabyNameDialog> createState() => _BabyNameDialogState();
+}
+
+final class _BabyNameDialogState extends State<BabyNameDialog> {
+  late final TextEditingController _name;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.initial);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(context, _name.text);
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: _name,
+      autofocus: true,
+      maxLength: 40,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _submit(),
+      decoration: const InputDecoration(labelText: 'Baby name'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('Save')),
+    ],
   );
 }
