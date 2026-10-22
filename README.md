@@ -50,7 +50,7 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 | --- | --- | --- |
 | **Android** | Download the private signed **staging APK** from the [latest successful **Spark staging Android** run](https://github.com/analienx/baby-sleep-tracker/actions/workflows/spark-staging-android.yml) under **Artifacts**, unzip and install `app-debug.apk` | QA only · artifact expires after 14 days |
 | **Android developers** | On the [feature branch](https://github.com/analienx/baby-sleep-tracker/tree/feat/spark-personal-cloud-light-ui), use `python scripts/staging_deploy.py doctor` and `deploy` after owner-managed secrets are configured | GitHub runner build + ADB deploy |
-| **iPhone (PWA)** | [Installation and privacy guide](docs/pwa/IPHONE_INSTALL.md). Dedicated Spark QA hosting site: https://little-rest-ios-qa.web.app | **Web build in review; not live until deployed/verified** |
+| **iPhone (PWA)** | **[Open Little Rest on iPhone](https://little-rest-ios-qa.web.app)** in Safari → Share → Add to Home Screen. [Install/privacy guide](docs/pwa/IPHONE_INSTALL.md) | **Live Spark QA — Chrome mobile smoke + restart recovery passed; physical Safari QA pending** |
 
 Android may require **Install unknown apps** permission for the browser or file manager opening the APK. It installs as `com.analienx.baby_sleep_tracker.staging` and does not overwrite the memory-only preview. No Google Play / App Store listing exists yet.
 
