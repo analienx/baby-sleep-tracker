@@ -2,6 +2,24 @@
 
 Little Rest uses [Semantic Versioning](https://semver.org/). Mobile build metadata is appended after `+`; pre-release builds are **not** production-approved. Product screenshots and summaries describe reviewed capabilities, not deployment guarantees.
 
+## [0.3.0-beta.1] — 2026-10-22 (internal QA candidate)
+
+**Multiple babies per household, separate accounts per family.** Draft [PR #34](https://github.com/analienx/baby-sleep-tracker/pull/34), built on the Android Family Lite and iPhone Home Screen PWA.
+
+### Added
+- Owner-created baby profiles, owner-only rename, a clearly visible baby selector on Today, History and Trends. Authorized caregivers can track each child without exchanging logins.
+- Individual immutable Firestore sleep journal for each extra baby, with household-scoped caregiver permissions and actor attribution; unrelated families remain segregated by Firebase UID.
+- Legacy Baby 1 records retain their exact original Firestore path and operation history, with **no bulk migration**.
+- Restore each user's last selected baby per signed-in UID and household owner; prevent recording if a saved non-primary child cannot be verified after relaunch.
+- Account erasure recursively deletes all child journals/profiles behind the existing irreversible server deletion fence.
+- Adversarial multi-child Firestore Rules and baby-selector widget regression; [multi-baby architecture and QA gates](docs/MULTI_BABY_SPARK.md).
+
+### Not yet approved
+- Physical two-account Android + iPhone Family Lite testing, multi-baby offline/reconnect and deletion stress tests, App Check enforcement and independent privacy G2/G3 review. **Synthetic data only.**
+- Deleting an individual baby or migrating old records between babies is deliberately unsupported to avoid accidental data loss.
+
+---
+
 ## [0.2.0-beta.2] — 2026-10-22 (internal QA candidate)
 
 **Spark Family Lite; separate parent accounts without Blaze or Cloud Functions.** This version is in draft PR #32, not a public release. The previous beta.1 personal staging app remains available.
