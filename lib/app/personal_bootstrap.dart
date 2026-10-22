@@ -87,7 +87,12 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
 
   // Firebase Auth retains this UID across application restarts. An initial
   // installation needs connectivity; later launches use the saved identity.
-  if (auth.currentUser == null) {
+  // On the web, wait until Firebase has restored its persistent identity
+  // before making any anonymous account. Otherwise Safari's first frame may
+  // race the saved login and silently create a different journal.
+  final restoredUser =
+      kIsWeb ? await auth.authStateChanges().first : auth.currentUser;
+  if (restoredUser == null) {
     await auth.signInAnonymously();
   }
   return PersonalCloudClient(
