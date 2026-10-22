@@ -30,6 +30,7 @@ def command(*parts: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-sha", help="Previously green source commit; must be an ancestor of HEAD")
+    parser.add_argument("--branch", choices=(BRANCH, "feat/multi-baby-spark-family"), default=BRANCH, help="Exact reviewed PWA source branch")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     git = shutil.which("git") or "git"
@@ -52,7 +53,7 @@ def main() -> None:
     gh = shutil.which("gh") or "gh"
     runs = json.loads(command(
         gh, "run", "list", "-R", REPO, "--workflow", WORKFLOW,
-        "--branch", BRANCH, "--limit", "50",
+        "--branch", args.branch, "--limit", "50",
         "--json", "databaseId,event,headSha,status,conclusion,url"
     ))
     matches = [r for r in runs if r.get("headSha") == sha
