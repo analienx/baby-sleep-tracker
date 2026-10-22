@@ -176,7 +176,11 @@ final class SparkFamilyLiteController {
     final members = await _grants(ownerUid)
         .limit(2)
         .get(const GetOptions(source: Source.server));
-    if (members.docs.isNotEmpty && !members.docs.any((d) => d.id == uid)) {
+    if (members.docs.any((d) => d.id == uid)) {
+      // A duplicate approval must not issue a forbidden immutable update.
+      return;
+    }
+    if (members.docs.isNotEmpty) {
       throw StateError('Family Lite currently supports one other caregiver.');
     }
     await _grants(ownerUid).doc(uid).set({
