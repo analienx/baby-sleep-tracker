@@ -251,7 +251,7 @@ final class PersonalCloudClient {
         await firestore.terminate();
         await firestore.clearPersistence();
         deletionNotice.value =
-            'Cloud sleep records deleted (two empty UID marker documents remain by design and hold no sleep or personal data). Local cache cleared. '
+            'Cloud sleep records deleted (an empty UID marker document remains by design, plus a sharing marker only if sharing was enabled; neither holds sleep or personal data). Local cache cleared. '
             'Close and reopen Little Rest before creating a new account.';
       } catch (_) {
         deletionNotice.value =

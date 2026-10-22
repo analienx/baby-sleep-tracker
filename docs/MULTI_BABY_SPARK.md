@@ -50,7 +50,7 @@ A household is owned by a verified Firebase account. Its owner can grant a secon
 4. Both caregivers see new baby profiles, and child-specific recorded operations sync with the true actor identity.
 5. Saved selections do not cross household/account boundaries; failed cold-start profile verification never silently falls back to the wrong baby.
 6. Revocation denies reads and writes across **all** babies, including offline pending writes after reconnect.
-7. Account deletion first creates the irreversible fence, then removes caregiver grants, each baby's operations and profile, finally legacy operations and Auth. No stale account should retain server-authorized access. Two empty marker documents (sharing/state, control/state) intentionally remain: Rules make them client-undeletable, they contain only flags/timestamps (no sleep or personal data), and they stay keyed by the deleted UID so no other account can reuse that journal path.
+7. Account deletion first creates the irreversible fence, then removes caregiver grants, each baby's operations and profile, finally legacy operations and Auth. No stale account should retain server-authorized access. The control/state fence document intentionally remains, and sharing/state remains only if sharing was ever enabled: Rules make both client-undeletable, they contain only flags/timestamps (no sleep or personal data), and they stay keyed by the deleted UID so no other account can reuse that journal path.
 8. On Android and iPhone PWA: synthetic two-account, two-baby QA with start/stop, offline/reconnect, export, cold start and accessibility before G2/G3 approval.
 
 ## Scope boundaries
