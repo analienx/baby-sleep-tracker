@@ -1,0 +1,20 @@
+name: Format oracle (scratch)
+on:
+  push:
+    branches: [scratch/format-oracle]
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Format target file in place
+        run: dart format lib/features/personal/presentation/personal_gate.dart test/personal/baby_name_dialog_test.dart
+      - uses: actions/upload-artifact@v4
+        with:
+          name: formatted-gate
+          path: |
+            lib/features/personal/presentation/personal_gate.dart
+            test/personal/baby_name_dialog_test.dart
