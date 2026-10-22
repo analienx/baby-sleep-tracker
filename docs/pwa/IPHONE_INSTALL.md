@@ -21,6 +21,8 @@ To pair with Android, each phone uses a separate email-verified account. Android
 - The site returned **HTTP 200** for the entry point, manifest, compiled Dart JS, PWA worker, storage probe and icon.
 - Real headless Chrome at 390×844 rendered the complete Today UI and Firebase-connected private journal.
 - With a synthetic active session, fully closing/reopening the browser with the same profile preserved the original start and the running timer; [genuine QA screenshot](../media/iphone-pwa-today-qa.png).
+- **Verified offline → online recovery on desktop Chrome:** restarted with network disabled, app and previous session loaded from the service-worker/IndexedDB cache with accurate “Cached on device” status; stopped the synthetic session while offline, saw “pending server sync”; reconnected and saw “Synced privately to Firebase”; reloaded online and the finished session and duration persisted. No page JS exceptions.
+- This is **desktop Chrome** proof, not an iPhone Safari guarantee. Only synthetic data until physical iPhone verification.
 - **Not yet verified:** mobile Safari/Add to Home Screen installation, cold-start offline/reconnect, two physical devices, App Check enforcement, eviction behavior, VoiceOver, real-device privacy acceptance. Do not use real baby's sleep data yet.
 
 ## Why this is not equivalent to the native iPhone build
