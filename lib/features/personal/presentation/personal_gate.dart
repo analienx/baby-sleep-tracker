@@ -518,11 +518,7 @@ final class _SignedOutScreenState extends State<_SignedOutScreen> {
 /// exit animation and flashed a used-after-disposed error. Pressing the
 /// keyboard Enter/Done action submits intentionally, exactly like Save.
 final class BabyNameDialog extends StatefulWidget {
-  const BabyNameDialog({
-    super.key,
-    required this.title,
-    required this.initial,
-  });
+  const BabyNameDialog({super.key, required this.title, required this.initial});
 
   final String title;
   final String initial;
