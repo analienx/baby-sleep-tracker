@@ -107,8 +107,9 @@ final class SparkFamilyLiteController {
         .listen(
           (grant) {
             if (auth.currentUser?.uid != caregiver ||
-                selectedOwnerUid.value != owner)
+                selectedOwnerUid.value != owner) {
               return;
+            }
             // A cached event is NOT evidence of revocation. Queued offline edits
             // still require later server authorization before being called synced.
             if (grant.metadata.isFromCache) {
