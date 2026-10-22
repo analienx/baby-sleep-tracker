@@ -303,7 +303,7 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
       // A server-acknowledged document may be ahead of the snapshots stream.
       setState(
         () => _profiles = [
-          ..._profiles,
+          ..._profiles.where((profile) => profile.id != id),
           SparkBabyProfile(id: id, name: name.trim()),
         ],
       );
