@@ -512,6 +512,7 @@ final class _SignedOutScreenState extends State<_SignedOutScreen> {
     ),
   );
 }
+
 /// Name prompt for adding or renaming a baby. The text controller is owned
 /// by the dialog state and disposed only after the route is removed:
 /// disposing it in the caller's finally (on dialog completion) raced the
