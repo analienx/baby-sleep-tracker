@@ -90,8 +90,12 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
   // On the web, wait until Firebase has restored its persistent identity
   // before making any anonymous account. Otherwise Safari's first frame may
   // race the saved login and silently create a different journal.
-  final restoredUser =
-      kIsWeb ? await auth.authStateChanges().first : auth.currentUser;
+  final User? restoredUser;
+  if (kIsWeb) {
+    restoredUser = await auth.authStateChanges().first;
+  } else {
+    restoredUser = auth.currentUser;
+  }
   if (restoredUser == null) {
     await auth.signInAnonymously();
   }
