@@ -8,10 +8,7 @@ void main() {
       // babies/primary/operations for every profile. Firestore Rules deny
       // listing that nested collection (split-journal guard), so the query
       // aborted erasure for any owner who had renamed Baby 1.
-      expect(
-        SparkBabyProfile.hasNestedOperations('primary'),
-        isFalse,
-      );
+      expect(SparkBabyProfile.hasNestedOperations('primary'), isFalse);
       expect(SparkBabyProfile.primary.isPrimary, isTrue);
     });
 

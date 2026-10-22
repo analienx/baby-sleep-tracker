@@ -154,6 +154,37 @@ void main() {
         // deletion. Earlier secondary-app teardown may interfere with the
         // Android Firestore plugin's pending-write check.
         // This still cannot prove production erasure with another device.
+        // Renamed Baby 1 + an extra baby: erasure must drain the nested
+        // journal and remove both profiles without ever listing the
+        // Rules-denied babies/primary/operations collection. Before the
+        // fix, that list query aborted deletion for renamed owners.
+        final root = firestore.collection('personalSleep').doc(uid);
+        await root.collection('babies').doc('primary').set({
+          'name': 'First',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        await root.collection('babies').doc('child-test').set({
+          'name': 'Second',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        final at = Timestamp.fromDate(DateTime.utc(2026, 10, 22, 9));
+        await root
+            .collection('babies')
+            .doc('child-test')
+            .collection('operations')
+            .doc('child-nap')
+            .set({
+              'schemaVersion': 1,
+              'actorId': uid,
+              'sessionId': 'sleep-child',
+              'parentIds': <String>[],
+              'deleted': false,
+              'recordedAtUtc': at,
+              'startedAtUtc': at,
+              'endedAtUtc': Timestamp.fromDate(
+                DateTime.utc(2026, 10, 22, 9, 30),
+              ),
+            });
         final deleting = personalClient.deleteAccount();
         await tester.pump();
         expect(find.text('Deleting private cloud records…'), findsOneWidget);
