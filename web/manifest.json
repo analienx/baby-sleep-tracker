@@ -1,0 +1,26 @@
+{
+  "name": "Little Rest — Baby Sleep",
+  "short_name": "Little Rest",
+  "description": "A calm, private sleep journal shared by caregivers.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#181C2E",
+  "theme_color": "#181C2E",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -15,11 +15,13 @@ const usePersonalStaging = bool.fromEnvironment('USE_PERSONAL_STAGING');
 const usePersonalEmulator = bool.fromEnvironment('USE_PERSONAL_EMULATOR');
 // Optional Spark Family Lite rollout; disabled for live staging until Rule QA.
 const useSparkFamilyLite = bool.fromEnvironment('USE_SPARK_FAMILY_LITE');
+// Explicit, separately deployed iPhone Home Screen PWA; Android is unchanged.
+const useIosPwa = bool.fromEnvironment('USE_IOS_PWA');
 
 Future<PersonalCloudClient> connectPersonalCloud() async {
   if (usePersonalStaging == usePersonalEmulator ||
-      kReleaseMode ||
-      (!Platform.isAndroid && !Platform.isIOS)) {
+      (kIsWeb && (!useIosPwa || !useSparkFamilyLite)) ||
+      (!kIsWeb && (kReleaseMode || (!Platform.isAndroid && !Platform.isIOS)))) {
     throw StateError(
       'Personal cloud is only available in an explicit mobile debug build.',
     );
@@ -39,7 +41,22 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
   );
   final auth = FirebaseAuth.instanceFor(app: app);
   final firestore = FirebaseFirestore.instanceFor(app: app);
-  firestore.settings = const Settings(persistenceEnabled: true);
+  if (kIsWeb) {
+    // Safari disables Firestore disk persistence by default. Fail closed when
+    // durable IndexedDB is unavailable: do not pretend offline taps are safe.
+    try {
+      await firestore.enablePersistence(
+        const PersistenceSettings(synchronizeTabs: true),
+      );
+    } on FirebaseException {
+      throw StateError(
+        'Offline storage is unavailable. Use a normal Safari Home Screen '
+        'installation and enable website storage before recording sleep.',
+      );
+    }
+  } else {
+    firestore.settings = const Settings(persistenceEnabled: true);
+  }
 
   if (usePersonalEmulator) {
     final host = resolveFirebaseEmulatorHost(
