@@ -310,7 +310,10 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
       await _selectBaby(id);
     } catch (_) {
       if (context.mounted) {
-        _tell(context, 'Could not add the baby. Check the name and connection.');
+        _tell(
+          context,
+          'Could not add the baby. Check the name and connection.',
+        );
       }
     }
   }
