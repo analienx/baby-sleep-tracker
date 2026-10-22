@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import 'spark_baby_profiles.dart';
+
 /// Spark-compatible, private-per-UID storage. No client-side family
 /// membership or invitation mutations are permitted.
 final class PersonalCloudClient {
@@ -136,7 +138,10 @@ final class PersonalCloudClient {
       ),
     );
 
-    if (familyLiteEnabled) {
+    // Erasure is never gated on the build-time family flag: Firestore state
+    // outlives any single build, so a family-created journal must still be
+    // erased when deletion runs on a personal-only build.
+    {
       // Server-acknowledged irreversible fence prevents other devices from
       // appending while this owner is erasing their journal.
       final root = firestore.collection('personalSleep').doc(user.uid);
@@ -170,7 +175,7 @@ final class PersonalCloudClient {
       }
     }
 
-    if (familyLiteEnabled) {
+    {
       // Each additional baby has its own immutable journal. Erase child
       // operations before the profile; erasing only the legacy root would
       // leave child data behind after removing the Auth identity.
@@ -184,6 +189,14 @@ final class PersonalCloudClient {
             .get(const GetOptions(source: Source.server));
         if (profiles.docs.isEmpty) break;
         for (final baby in profiles.docs) {
+          // The primary profile has no nested journal: its operations
+          // stay at the legacy root (erased below) and Rules deny listing
+          // the nested primary collection. Querying it would abort
+          // erasure for every owner who renamed Baby 1.
+          if (!SparkBabyProfile.hasNestedOperations(baby.id)) {
+            await baby.reference.delete();
+            continue;
+          }
           final childOps = baby.reference.collection('operations');
           while (true) {
             final page = await childOps
@@ -238,7 +251,7 @@ final class PersonalCloudClient {
         await firestore.terminate();
         await firestore.clearPersistence();
         deletionNotice.value =
-            'Account and cloud sleep records deleted. Local cache cleared. '
+            'Cloud sleep records deleted (two empty UID marker documents remain by design and hold no sleep or personal data). Local cache cleared. '
             'Close and reopen Little Rest before creating a new account.';
       } catch (_) {
         deletionNotice.value =

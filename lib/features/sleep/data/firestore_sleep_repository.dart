@@ -8,6 +8,7 @@ import '../domain/sleep_ledger.dart';
 import '../domain/sleep_archive.dart';
 import '../domain/sleep_repository.dart';
 import '../domain/sleep_session.dart';
+import '../../personal/data/spark_baby_profiles.dart';
 
 /// Immutable operation journal shared by the synthetic development adapter
 /// and the F2 private family scope. The legacy dev path must never be enabled
@@ -36,10 +37,10 @@ final class FirestoreSleepRepository
     required FirebaseFirestore firestore,
     required String uid,
     String? actorUid,
-    String babyId = 'primary',
+    String babyId = SparkBabyProfile.primaryId,
     this.writeBlocked,
     String Function()? newId,
-  }) : _operations = babyId == 'primary'
+  }) : _operations = babyId == SparkBabyProfile.primaryId
            ? firestore
                  .collection('personalSleep')
                  .doc(uid)

@@ -14,6 +14,12 @@ final class SparkBabyProfile {
   final String name;
 
   bool get isPrimary => id == primaryId;
+
+  /// Only additional babies nest operations under their profile. The
+  /// primary baby's journal stays at the legacy root, and Firestore Rules
+  /// deny listing the nested primary collection so no split journal can
+  /// form. Account erasure must never query that nested collection.
+  static bool hasNestedOperations(String babyId) => babyId != primaryId;
 }
 
 /// Owner-scoped profiles shared by the caregiver using existing Family Lite

@@ -38,6 +38,16 @@ test('Spark multi-baby: owner-only profiles, per-baby operations and fenced eras
     await assertSucceeds(owner.doc(babyB).set({
       name:'Child B',createdAt:serverTimestamp(),
     }));
+    // Renaming Baby 1 creates the primary profile document. Its journal
+    // stays at the legacy root: the nested primary collection must stay
+    // unreadable so no split journal can form. Account erasure therefore
+    // must never list it (that query aborts erasure for renamed owners).
+    const babyPrimary=root+'/babies/primary';
+    await assertSucceeds(owner.doc(babyPrimary).set({
+      name:'First',createdAt:serverTimestamp(),
+    }));
+    await assertFails(owner.collection(babyPrimary+'/operations').get());
+    await assertFails(carer.collection(babyPrimary+'/operations').get());
     await assertFails(owner.doc(root+'/babies/bad-profile').set({
       name:'',createdAt:serverTimestamp(),
     }));
@@ -86,6 +96,28 @@ test('Spark multi-baby: owner-only profiles, per-baby operations and fenced eras
     await assertSucceeds(owner.doc(babyA).delete());
     await assertSucceeds(owner.doc(babyB+'/operations/b-nap').delete());
     await assertSucceeds(owner.doc(babyB).delete());
+    // Fenced erasure removes the renamed primary profile and its legacy
+    // root journal without ever listing the nested primary collection.
+    await assertSucceeds(owner.doc(babyPrimary).delete());
     await assertSucceeds(owner.doc(primary+'/old-nap').delete());
+  }finally{await env.cleanup()}
+});
+test('Spark multi-baby: fenced erasure works without any sharing marker (cross-build)',{skip:!process.env.FIRESTORE_EMULATOR_HOST},async()=>{
+  const env=await initializeTestEnvironment({projectId:'demo-little-rest',firestore:{rules:readFileSync(resolve(__dirname,'../../firestore.rules'),'utf8')}});
+  const uid='multi-baby-solo-20261022'; const root='personalSleep/'+uid;
+  const baby=root+'/babies/child-solo-20261022'; const at=new Date('2026-10-22T09:00:00Z');
+  const op={schemaVersion:1,actorId:uid,sessionId:'sleep-1',parentIds:[],deleted:false,recordedAtUtc:at,startedAtUtc:at,endedAtUtc:new Date('2026-10-22T09:30:00Z')};
+  try{
+    const owner=env.authenticatedContext(uid,{email_verified:true}).firestore();
+    await assertSucceeds(owner.doc(baby).set({name:'Solo',createdAt:serverTimestamp()}));
+    await assertSucceeds(owner.doc(baby+'/operations/s-nap').set(op));
+    await assertSucceeds(owner.doc(root+'/operations/old-nap').set(op));
+    // No sharing/state exists: profile deletion must still be fence-gated,
+    // and the ungated client erasure sequence must be able to complete.
+    await assertFails(owner.doc(baby).delete());
+    await assertSucceeds(owner.doc(root+'/control/state').set({deleting:true,requestedAt:serverTimestamp()}));
+    await assertSucceeds(owner.doc(baby+'/operations/s-nap').delete());
+    await assertSucceeds(owner.doc(baby).delete());
+    await assertSucceeds(owner.doc(root+'/operations/old-nap').delete());
   }finally{await env.cleanup()}
 });
