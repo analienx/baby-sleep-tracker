@@ -17,7 +17,7 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 </div>
 
 > [!IMPORTANT]
-> **Private preview, not a public release.** Android Firebase staging runs on a test project and has not passed full on-device privacy/recovery testing. Use **synthetic sleep data only**. An installable iPhone build and secure two-caregiver sharing are not yet available. Spark Family Lite is implemented in [PR #32](https://github.com/analienx/baby-sleep-tracker/pull/32), stacked on the private Spark work [PR #31](https://github.com/analienx/baby-sleep-tracker/pull/31). Family Lite is undergoing two-account security testing; it is not yet deployed to real family accounts.
+> **Private preview, not a public release.** Use **synthetic sleep data only**. Spark Family Lite Android beta.2 is available for QA and has passed two-account emulator security/sync tests. An installable iPhone Home Screen PWA is being validated in [PR #33](https://github.com/analienx/baby-sleep-tracker/pull/33), and live two-device iPhone/Android acceptance is pending. This is not an App Store release.
 
 ## The experience
 
@@ -50,7 +50,7 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 | --- | --- | --- |
 | **Android** | Download the private signed **staging APK** from the [latest successful **Spark staging Android** run](https://github.com/analienx/baby-sleep-tracker/actions/workflows/spark-staging-android.yml) under **Artifacts**, unzip and install `app-debug.apk` | QA only · artifact expires after 14 days |
 | **Android developers** | On the [feature branch](https://github.com/analienx/baby-sleep-tracker/tree/feat/spark-personal-cloud-light-ui), use `python scripts/staging_deploy.py doctor` and `deploy` after owner-managed secrets are configured | GitHub runner build + ADB deploy |
-| **iPhone** | Flutter source and iOS simulator builds exist, but physical iPhone distribution still needs macOS/Xcode, Apple signing and TestFlight/ad-hoc provisioning | **Not installable yet** |
+| **iPhone (PWA)** | [Installation and privacy guide](docs/pwa/IPHONE_INSTALL.md). Dedicated Spark QA hosting site: https://little-rest-ios-qa.web.app | **Web build in review; not live until deployed/verified** |
 
 Android may require **Install unknown apps** permission for the browser or file manager opening the APK. It installs as `com.analienx.baby_sleep_tracker.staging` and does not overwrite the memory-only preview. No Google Play / App Store listing exists yet.
 

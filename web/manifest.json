@@ -2,6 +2,7 @@
   "name": "Little Rest — Baby Sleep",
   "short_name": "Little Rest",
   "description": "A calm, private sleep journal shared by caregivers.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

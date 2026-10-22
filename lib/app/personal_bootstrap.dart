@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 import 'family_bootstrap.dart';
+import 'web_storage_probe.dart';
 import 'firebase_emulator_host.dart';
 import '../features/personal/data/personal_cloud_client.dart';
 
@@ -27,6 +29,12 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
     );
   }
 
+  if (kIsWeb && !await canPersistWebData()) {
+    throw StateError(
+      'Safari cannot use IndexedDB on this device. '
+      'Do not record sleep until browser storage is enabled.',
+    );
+  }
   final app = await Firebase.initializeApp(
     options: usePersonalEmulator
         ? FirebaseOptions(
@@ -39,7 +47,20 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
           )
         : configuredFirebaseOptions(),
   );
+  if (kIsWeb) {
+    // App Check is configured only when Firebase Console has registered the
+    // matching reCAPTCHA Enterprise site key. No production claims without it.
+    const siteKey = String.fromEnvironment('FIREBASE_WEB_APPCHECK_SITE_KEY');
+    if (siteKey.isNotEmpty) {
+      await FirebaseAppCheck.instanceFor(app: app)
+          .activate(providerWeb: ReCaptchaEnterpriseProvider(siteKey));
+    }
+  }
   final auth = FirebaseAuth.instanceFor(app: app);
+  if (kIsWeb) {
+    // Home Screen apps need the same recoverable Auth UID across relaunches.
+    await auth.setPersistence(Persistence.LOCAL);
+  }
   final firestore = FirebaseFirestore.instanceFor(app: app);
   if (kIsWeb) {
     // FlutterFire 7 configures persistent IndexedDB via Settings rather than
