@@ -56,7 +56,7 @@ class DeploymentTests(TestCase):
     @patch.object(app, "checked_run", return_value={"url": "https://example"})
     @patch.object(app, "aapt", return_value=None)
     @patch.object(app, "adb_one", return_value="dummy")
-    @patch.object(app, "present", side_effect=[True, True, True])
+    @patch.object(app, "present", side_effect=[True, True, True, True])
     @patch.object(app, "call", side_effect=lambda *args: (
         f"{app.PKG}/com.analienx.baby_sleep_tracker.MainActivity"
         if "resolve-activity" in args else ""))
@@ -72,6 +72,21 @@ class DeploymentTests(TestCase):
         self.assertEqual(len(launch), 1)
         self.assertEqual(launch[0][-1],
                          f"{app.PKG}/com.analienx.baby_sleep_tracker.MainActivity")
+
+    @patch.object(app, "checked_run", return_value={"url": "https://example"})
+    @patch.object(app, "aapt", return_value=None)
+    @patch.object(app, "adb_one", return_value="dummy")
+    @patch.object(app, "present", side_effect=[False, True, True])
+    @patch.object(app, "call", side_effect=lambda *args: (
+        f"{app.PKG}/com.analienx.baby_sleep_tracker.MainActivity"
+        if "resolve-activity" in args else ""))
+    def test_existing_staging_without_preview_is_upgradable(self, call, *_):
+        with TemporaryDirectory() as tmp:
+            file = Path(tmp) / "app-debug.apk"
+            file.write_bytes(b"synthetic")
+            app.install(file, 42, "feat/spark-family-lite")
+        self.assertTrue(any("install" in a.args for a in call.call_args_list))
+        self.assertFalse(any("uninstall" in a.args for a in call.call_args_list))
 
     @patch.object(app, "checked_run", return_value={"url": "https://example"})
     @patch.object(app, "aapt", return_value=None)

@@ -166,7 +166,19 @@ def adb_one():
 
 
 def present(serial, package):
-    return 'package:' in call('adb', '-s', serial, 'shell', 'pm', 'path', package)
+    # Android `pm path` returns status 1 with empty stdout for an app that
+    # simply is not installed. That is a valid negative result, not an ADB
+    # transport error; fail closed on all other status codes or diagnostics.
+    result = subprocess.run(
+        ('adb', '-s', serial, 'shell', 'pm', 'path', package),
+        text=True, capture_output=True, encoding='utf-8', errors='replace',
+        check=False,
+    )
+    if result.returncode == 1 and not result.stdout.strip() and not result.stderr.strip():
+        return False
+    if result.returncode != 0:
+        raise Blocked('ADB package inspection failed; device state unknown.')
+    return any(line.startswith('package:') for line in result.stdout.splitlines())
 
 
 def aapt():
@@ -190,10 +202,19 @@ def install(apk, run_id, branch=BRANCH):
     else:
         print('Local aapt unavailable; trusting successful GitHub package assertion.')
     serial = adb_one()
-    if not present(serial, PREVIEW):
-        raise Blocked('Existing preview absent: refusing to alter this device.')
+    preview_before = present(serial, PREVIEW)
+    staging_before = present(serial, PKG)
+    if not (preview_before or staging_before):
+        raise Blocked(
+            'Neither Little Rest staging nor preview is present. '
+            'Fresh-phone enrollment needs a separate explicit action.'
+        )
+    # Installing over an existing staging app preserves its Firebase Auth
+    # identity and journal; preview, if present, must remain untouched.
     call('adb', '-s', serial, 'install', '-r', str(apk))
-    if not present(serial, PKG) or not present(serial, PREVIEW):
+    if not present(serial, PKG) or (
+        preview_before and not present(serial, PREVIEW)
+    ):
         raise Blocked('Package verification failed; do not clear application data.')
     # The Gradle applicationId has a .staging suffix, but Flutter's Kotlin
     # MainActivity can retain the original Java package namespace. Resolve the
