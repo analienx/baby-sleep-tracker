@@ -2,7 +2,7 @@ name: Little Rest iPhone PWA — build and browser tests
 
 on:
   push:
-    branches: [feat/ios-home-screen-pwa]
+    branches: [feat/ios-home-screen-pwa, feat/multi-baby-spark-family]
   pull_request:
     paths:
       - 'lib/**'
