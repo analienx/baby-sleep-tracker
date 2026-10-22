@@ -269,7 +269,9 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
         ? const Duration(seconds: 10)
         : const Duration(seconds: 4);
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message), duration: duration));
+        .showSnackBar(
+          SnackBar(content: Text(message), duration: duration),
+        );
   }
 
   Future<void> _createBaby(BuildContext context) async {
