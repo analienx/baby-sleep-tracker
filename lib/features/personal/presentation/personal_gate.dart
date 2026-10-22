@@ -184,7 +184,7 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
   void initState() {
     super.initState();
     if (_babies != null) {
-      _babySubscription = _babies!.watch().listen(
+      _babySubscription = _babies.watch().listen(
         (values) {
           if (mounted) setState(() => _profiles = values);
         },
@@ -221,7 +221,7 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
     try {
       final id = _babies == null
           ? SparkBabyProfile.primaryId
-          : await _babies!.restoreSelection(widget.uid);
+          : await _babies.restoreSelection(widget.uid);
       if (mounted) _openBaby(id);
     } catch (_) {
       // Never record into Baby 1 if a previously selected baby cannot be
@@ -240,7 +240,7 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
     if (_babies == null || id == _selectedBabyId) return;
     if (!_profiles.any((p) => p.id == id)) return;
     try {
-      await _babies!.saveSelection(widget.uid, id);
+      await _babies.saveSelection(widget.uid, id);
       if (mounted) _openBaby(id);
     } catch (_) {
       if (mounted) {
@@ -294,11 +294,11 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
   }
 
   Future<void> _createBaby(BuildContext context) async {
-    if (_babies == null || !_babies!.canManage) return;
+    if (_babies == null || !_babies.canManage) return;
     final name = await _requestName(context, title: 'Add another baby');
     if (name == null) return;
     try {
-      final id = await _babies!.add(name);
+      final id = await _babies.add(name);
       if (!mounted) return;
       // A server-acknowledged document may be ahead of the snapshots stream.
       setState(
@@ -309,13 +309,15 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
       );
       await _selectBaby(id);
     } catch (_) {
-      _tell(context, 'Could not add the baby. Check the name and connection.');
+      if (context.mounted) {
+        _tell(context, 'Could not add the baby. Check the name and connection.');
+      }
     }
   }
 
   Future<void> _renameBaby(BuildContext context) async {
     final id = _selectedBabyId;
-    if (id == null || _babies == null || !_babies!.canManage) return;
+    if (id == null || _babies == null || !_babies.canManage) return;
     final current = _profiles.where((p) => p.id == id).firstOrNull;
     final name = await _requestName(
       context,
@@ -324,9 +326,11 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
     );
     if (name == null) return;
     try {
-      await _babies!.rename(id, name);
+      await _babies.rename(id, name);
     } catch (_) {
-      _tell(context, 'Could not rename the baby. Check the connection.');
+      if (context.mounted) {
+        _tell(context, 'Could not rename the baby. Check the connection.');
+      }
     }
   }
 
