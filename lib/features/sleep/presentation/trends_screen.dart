@@ -256,8 +256,10 @@ class _DayRow extends StatelessWidget {
         ? formatShortDuration(day.recordedSleep)
         : strings.trendsNoRecords;
     // Relative scale among recorded days, never a 24-hour target.
-    final portion = (day.recordedSleep.inMicroseconds / longestLoggedDay)
-        .clamp(0.0, 1.0);
+    final portion = (day.recordedSleep.inMicroseconds / longestLoggedDay).clamp(
+      0.0,
+      1.0,
+    );
     final scheme = Theme.of(context).colorScheme;
     final highlight = day.isToday
         ? scheme.primary
@@ -283,9 +285,8 @@ class _DayRow extends StatelessWidget {
               children: [
                 Text(
                   day.isToday ? '$label · Today' : label,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(context).textTheme.labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 if (day.hasOverlap)
