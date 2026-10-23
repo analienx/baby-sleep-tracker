@@ -265,13 +265,10 @@ final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
 
   void _tell(BuildContext context, String message, {bool long = false}) {
     if (!context.mounted) return;
-    final duration = long
-        ? const Duration(seconds: 10)
-        : const Duration(seconds: 4);
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-          SnackBar(content: Text(message), duration: duration),
-        );
+    final duration = Duration(seconds: long ? 10 : 4);
+    final snackBar = SnackBar(content: Text(message), duration: duration);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(snackBar);
   }
 
   Future<void> _createBaby(BuildContext context) async {
