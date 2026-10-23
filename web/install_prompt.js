@@ -20,11 +20,11 @@
   let modal = null;
   const dismissalKey = 'little-rest-install-guide-dismissed';
   const dismissed = () => {
-    try { return sessionStorage.getItem(dismissalKey) === 'yes'; }
+    try { return Date.now() - Number(localStorage.getItem(dismissalKey) || 0) < 30 * 24 * 60 * 60 * 1000; }
     catch (_) { return false; }
   };
   const rememberDismissal = () => {
-    try { sessionStorage.setItem(dismissalKey, 'yes'); }
+    try { localStorage.setItem(dismissalKey, String(Date.now())); }
     catch (_) { /* private browsing may disable storage */ }
   };
 
