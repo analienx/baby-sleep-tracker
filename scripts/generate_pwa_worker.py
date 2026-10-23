@@ -56,7 +56,9 @@ self.addEventListener('fetch', event => {
   // allow a Home Screen app to relaunch while offline.
   if (url.pathname === '/main.dart.js' ||
       url.pathname === '/flutter_bootstrap.js') {
-    event.respondWith(fetch(event.request).catch(() =>
+    // Bypass the browser HTTP cache too: older Firebase Hosting defaults
+    // allowed main.dart.js to remain fresh for 3600s even after PWA upgrade.
+    event.respondWith(fetch(event.request, {cache: 'reload'}).catch(() =>
       caches.match(event.request)));
     return;
   }
