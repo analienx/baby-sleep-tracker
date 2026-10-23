@@ -266,8 +266,18 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'Today with two recorded sessions must fit a 390px phone',
+    );
     await tester.tap(find.text('Trends'));
     await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'Trends with two logged days must fit a 390px phone',
+    );
     expect(find.text('2 of 7 days with entries'), findsOneWidget);
     expect(find.text('6h 42m'), findsWidgets);
     expect(find.text('3h 14m'), findsWidgets);
