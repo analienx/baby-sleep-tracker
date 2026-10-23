@@ -102,7 +102,15 @@ class _TrendsContent extends StatelessWidget {
     final strings = AppLocalizations.of(context);
     final summary = SleepSummary.rolling24Hours(records, nowUtc);
     final days = SleepWeek.lastSevenDays(records, nowUtc);
-    final haveRecords = days.any((day) => day.hasRecords);
+    final loggedDays = days.where((day) => day.hasRecords).toList();
+    final haveRecords = loggedDays.isNotEmpty;
+    final missingDays = days.length - loggedDays.length;
+    final longestLoggedDay = loggedDays.fold<int>(
+      1,
+      (maximum, day) => day.recordedSleep.inMicroseconds > maximum
+          ? day.recordedSleep.inMicroseconds
+          : maximum,
+    );
     final hasWeekOverlap = days.any((day) => day.hasOverlap);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,7 +156,7 @@ class _TrendsContent extends StatelessWidget {
                   strings.trendsWeekDescription,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 if (!haveRecords) ...[
                   const Icon(Icons.auto_graph_rounded, size: 32),
                   const SizedBox(height: 12),
@@ -159,11 +167,53 @@ class _TrendsContent extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(strings.trendsEmptyBody),
                 ] else ...[
-                  for (final day in days) ...[
-                    _DayRow(day: day),
-                    if (day != days.last) const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        '${loggedDays.length} of 7 days with entries',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Bars compare logged days, scaled to the longest '
+                    'recorded day—not a sleep target.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 18),
+                  for (final day in loggedDays) ...[
+                    _DayRow(day: day, longestLoggedDay: longestLoggedDay),
+                    if (day != loggedDays.last) const SizedBox(height: 15),
                   ],
-                  const SizedBox(height: 19),
+                  if (missingDays > 0) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 17,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '$missingDays other ${missingDays == 1 ? 'day has' : 'days have'} '
+                            'no entries. Missing records do not mean zero sleep.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 14),
                   Text(
                     strings.trendsPartial,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -191,9 +241,10 @@ class _TrendsContent extends StatelessWidget {
 }
 
 class _DayRow extends StatelessWidget {
-  const _DayRow({required this.day});
+  const _DayRow({required this.day, required this.longestLoggedDay});
 
   final SleepDayTotal day;
+  final int longestLoggedDay;
 
   @override
   Widget build(BuildContext context) {
@@ -204,10 +255,9 @@ class _DayRow extends StatelessWidget {
     final value = day.hasRecords
         ? formatShortDuration(day.recordedSleep)
         : strings.trendsNoRecords;
-    final fullDayMicros = day.dayLength.inMicroseconds;
-    final portion = fullDayMicros <= 0
-        ? 0.0
-        : (day.recordedSleep.inMicroseconds / fullDayMicros).clamp(0.0, 1.0);
+    // Relative scale among recorded days, never a 24-hour target.
+    final portion = (day.recordedSleep.inMicroseconds / longestLoggedDay)
+        .clamp(0.0, 1.0);
     final scheme = Theme.of(context).colorScheme;
     final highlight = day.isToday
         ? scheme.primary
@@ -226,50 +276,51 @@ class _DayRow extends StatelessWidget {
             : strings.trendsNoStatus}${day.hasOverlap ? strings.trendsDayOverlapStatus : ''}',
       ),
       child: ExcludeSemantics(
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
-              width: 42,
-              child: Text(label, style: Theme.of(context).textTheme.labelLarge),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Container(
-                height: 15,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: portion,
-                    child: ColoredBox(color: highlight),
+            Row(
+              children: [
+                Text(
+                  day.isToday ? '$label · Today' : label,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 78,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (day.hasOverlap)
-                    Icon(
+                const Spacer(),
+                if (day.hasOverlap)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(
                       Icons.warning_amber_rounded,
-                      size: 15,
+                      size: 17,
                       color: scheme.error,
                     ),
-                  Flexible(
-                    child: Text(
-                      value,
-                      textAlign: TextAlign.end,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
                   ),
-                ],
+                Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Container(
+              height: 9,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: portion,
+                  child: ColoredBox(color: highlight),
+                ),
               ),
             ),
           ],
