@@ -175,9 +175,12 @@ class _TrendsContent extends StatelessWidget {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 7),
-                      Text(
-                        '${loggedDays.length} of 7 days with entries',
-                        style: Theme.of(context).textTheme.labelLarge,
+                      Expanded(
+                        child: Text(
+                          '${loggedDays.length} of 7 days with entries',
+                          style: Theme.of(context).textTheme.labelLarge,
+                          softWrap: true,
+                        ),
                       ),
                     ],
                   ),
@@ -283,12 +286,16 @@ class _DayRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(
-                  day.isToday ? '$label · Today' : label,
-                  style: Theme.of(context).textTheme.labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                Expanded(
+                  child: Text(
+                    day.isToday ? '$label · Today' : label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelLarge
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 if (day.hasOverlap)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
