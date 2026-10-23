@@ -50,6 +50,16 @@ self.addEventListener('fetch', event => {
       caches.match('/index.html')));
     return;
   }
+  // Flutter application code needs network-first updates. A prior worker
+  // could otherwise keep serving an old main.dart.js for another release,
+  // even when Hosting already serves a newer version. Cached fallbacks still
+  // allow a Home Screen app to relaunch while offline.
+  if (url.pathname === '/main.dart.js' ||
+      url.pathname === '/flutter_bootstrap.js') {
+    event.respondWith(fetch(event.request).catch(() =>
+      caches.match(event.request)));
+    return;
+  }
   event.respondWith(caches.match(event.request).then(cached =>
     cached || fetch(event.request)));
 });
