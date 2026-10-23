@@ -19,7 +19,8 @@ const usePersonalEmulator = bool.fromEnvironment('USE_PERSONAL_EMULATOR');
 const useSparkFamilyLite = bool.fromEnvironment('USE_SPARK_FAMILY_LITE');
 // Unified Android + iPhone browser-first distribution. Keep the old define
 // for staged clients built from the existing shared Flutter web channel.
-const useMobilePwa = bool.fromEnvironment('USE_MOBILE_PWA') ||
+const useMobilePwa =
+    bool.fromEnvironment('USE_MOBILE_PWA') ||
     bool.fromEnvironment('USE_IOS_PWA');
 const useIosPwa = useMobilePwa;
 
