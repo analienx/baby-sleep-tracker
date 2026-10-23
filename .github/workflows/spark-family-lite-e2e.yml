@@ -38,7 +38,11 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Validate Dart and integration tests
         run: |
-          dart format --output=none --set-exit-if-changed lib integration_test/spark_family_lite_emulator_test.dart
+          if ! dart format --output=none --set-exit-if-changed lib integration_test/spark_family_lite_emulator_test.dart; then
+            dart format lib integration_test/spark_family_lite_emulator_test.dart
+            git diff -- lib integration_test/spark_family_lite_emulator_test.dart
+            exit 1
+          fi
           flutter analyze --no-pub
       - name: Node 22 / Firebase emulators
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
