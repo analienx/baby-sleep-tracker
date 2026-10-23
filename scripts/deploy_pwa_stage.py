@@ -20,6 +20,7 @@ WORKFLOW = "ios-pwa-ci.yml"
 REQUIRED = (
     "index.html", "main.dart.js", "flutter_bootstrap.js",
     "pwa-sw.js", "storage_probe.js", "manifest.json",
+    "install_prompt.js",
 )
 
 
@@ -83,10 +84,10 @@ def main() -> None:
     if (out / "main.dart.js").stat().st_size < 100000:
         raise RuntimeError("Suspicious compiled application size.")
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8-sig"))
-    if manifest.get("display") != "standalone" or manifest.get("start_url") != "/":
+    if manifest.get("display") != "standalone" or manifest.get("start_url") != "/" or manifest.get("id") != "/":
         raise RuntimeError("PWA manifest failed installability checks.")
     sw = (out / "pwa-sw.js").read_text(encoding="utf-8")
-    if "little-rest-shell-" not in sw or "url.origin !== self.location.origin" not in sw:
+    if "little-rest-shell-" not in sw or "url.origin !== self.location.origin" not in sw or "/install_prompt.js" not in sw:
         raise RuntimeError("Offline shell does not pass same-origin guard.")
 
     public = root / "build" / "web"
