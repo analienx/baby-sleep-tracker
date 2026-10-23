@@ -1,5 +1,7 @@
 # Little Rest on iPhone — Home Screen web app (Spark QA)
 
+> **Now one PWA for Android and iPhone.** See the primary [cross-platform installation and safety guide](MOBILE_INSTALL.md). This older page is retained for iPhone-specific physical QA history.
+
 **Channel:** 0.2.0-beta.2 iPhone PWA candidate · [PR #33](https://github.com/analienx/baby-sleep-tracker/pull/33)
 **Host:** **https://little-rest-ios-qa.web.app — LIVE** (dedicated Firebase Hosting site, deployed 2026-10-22)
 **Backend:** existing `little-rest-stage-jh-261020` Spark Auth + Firestore, **no Cloud Functions/Blaze**.
