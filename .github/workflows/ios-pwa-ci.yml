@@ -9,6 +9,7 @@ on:
       - 'web/**'
       - 'scripts/generate_pwa_worker.py'
       - 'web/install_prompt.js'
+      - 'scripts/pwa_install_test.mjs'
       - 'firebase.pwa.json'
       - '.github/workflows/ios-pwa-ci.yml'
   workflow_dispatch:
@@ -45,6 +46,8 @@ jobs:
           flutter analyze --no-pub
       - name: Flutter unit tests
         run: flutter test --no-pub
+      - name: Cross-platform install behavior tests
+        run: node --test scripts/pwa_install_test.mjs
       - name: Compile registered Spark QA PWA (NOT automatically deployed)
         run: |
           python3 -c "from pathlib import Path; import json; p=Path('web/firebase-staging.defines.json'); c=json.loads(p.read_text(encoding='utf-8-sig')); assert c['FIREBASE_PROJECT_ID']=='little-rest-stage-jh-261020'; assert c['FIREBASE_WEB_APP_ID']=='1:256303473837:web:a78e23179e13f4ed6d9224'; assert all(c[x]=='true' for x in ('USE_MOBILE_PWA','USE_PERSONAL_STAGING','USE_SPARK_FAMILY_LITE')); p.write_text(json.dumps(c),encoding='utf-8')"
