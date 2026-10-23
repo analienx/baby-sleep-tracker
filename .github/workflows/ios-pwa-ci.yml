@@ -54,6 +54,7 @@ jobs:
         run: |
           python3 -c "from pathlib import Path; import json; r=Path('build/web'); m=json.loads((r/'manifest.json').read_text()); assert m['display']=='standalone'; assert m['start_url']=='/'; assert (r/'pwa-sw.js').exists(); assert (r/'main.dart.js').exists(); assert 'little-rest-shell-' in (r/'pwa-sw.js').read_text()"
           node --check build/web/pwa-sw.js
+          grep -F "url.pathname === '/main.dart.js'" build/web/pwa-sw.js
       - name: Retain actual Spark staging PWA for manual reviewed deployment
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
