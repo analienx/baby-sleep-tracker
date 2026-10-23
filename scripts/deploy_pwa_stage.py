@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deploy an exact green iPhone PWA *push build* to its isolated Spark QA site.
+"""Deploy an exact green Android + iPhone mobile PWA push build to Spark QA.
 
 Requires locally authenticated gh/Firebase CLIs. No secret values are read or
 uploaded. Never deploys Firestore Rules, Functions, or the account-deletion site.
@@ -15,11 +15,12 @@ import sys
 REPO = "analienx/baby-sleep-tracker"
 BRANCH = "feat/ios-home-screen-pwa"
 PROJECT = "little-rest-stage-jh-261020"
-SITE = "little-rest-ios-qa"
+SITE = "little-rest-ios-qa"  # Legacy origin; shared by Android and iPhone.
 WORKFLOW = "ios-pwa-ci.yml"
 REQUIRED = (
     "index.html", "main.dart.js", "flutter_bootstrap.js",
     "pwa-sw.js", "storage_probe.js", "manifest.json",
+    "install_prompt.js",
 )
 
 
@@ -30,6 +31,7 @@ def command(*parts: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-sha", help="Previously green source commit; must be an ancestor of HEAD")
+    parser.add_argument("--branch", choices=(BRANCH, "feat/multi-baby-spark-family"), default=BRANCH, help="Exact reviewed PWA source branch")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     git = shutil.which("git") or "git"
@@ -52,7 +54,7 @@ def main() -> None:
     gh = shutil.which("gh") or "gh"
     runs = json.loads(command(
         gh, "run", "list", "-R", REPO, "--workflow", WORKFLOW,
-        "--branch", BRANCH, "--limit", "50",
+        "--branch", args.branch, "--limit", "50",
         "--json", "databaseId,event,headSha,status,conclusion,url"
     ))
     matches = [r for r in runs if r.get("headSha") == sha
@@ -82,10 +84,10 @@ def main() -> None:
     if (out / "main.dart.js").stat().st_size < 100000:
         raise RuntimeError("Suspicious compiled application size.")
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8-sig"))
-    if manifest.get("display") != "standalone" or manifest.get("start_url") != "/":
+    if manifest.get("display") != "standalone" or manifest.get("start_url") != "/" or manifest.get("id") != "/":
         raise RuntimeError("PWA manifest failed installability checks.")
     sw = (out / "pwa-sw.js").read_text(encoding="utf-8")
-    if "little-rest-shell-" not in sw or "url.origin !== self.location.origin" not in sw:
+    if "little-rest-shell-" not in sw or "url.origin !== self.location.origin" not in sw or "/install_prompt.js" not in sw:
         raise RuntimeError("Offline shell does not pass same-origin guard.")
 
     public = root / "build" / "web"

@@ -20,11 +20,51 @@
     #loading { position: fixed; inset: 0; display: grid; place-items: center;
       background: #181C2E; color: #DDD3F5; font: 500 17px system-ui, sans-serif;
       letter-spacing: .015em; z-index: -1; }
+    /* Install surfaces are browser-only, independent of Flutter navigation.
+       A compact, dismissible card is preferable to an interruptive modal. */
+    .lr-install-banner { box-sizing: border-box; position: fixed; z-index: 10000;
+      left: 14px; right: 14px; bottom: calc(89px + env(safe-area-inset-bottom, 0px));
+      display: flex; align-items: center; gap: 9px; max-width: 620px; margin-inline: auto;
+      padding: 11px 10px 11px 15px; border-radius: 20px;
+      border: 1px solid #d8d1eb; color: #20263c; background: #fff;
+      box-shadow: 0 8px 30px #11162235; font: 600 13px/1.35 system-ui, sans-serif; }
+    .lr-install-banner span { flex: 1; min-width: 0; }
+    .lr-install-action, .lr-install-done { border: 0; border-radius: 12px;
+      background: #4c416f; color: #fff; font: 700 14px system-ui, sans-serif;
+      padding: 12px 15px; min-height: 44px; cursor: pointer; }
+    .lr-install-close { width: 42px; height: 44px; flex: 0 0 42px; border: 0;
+      background: transparent; color: #3b3e55; border-radius: 12px;
+      font: 24px system-ui, sans-serif; cursor: pointer; }
+    .lr-install-backdrop { position: fixed; inset: 0; z-index: 10001;
+      display: grid; align-items: center; justify-items: center; padding: 20px;
+      background: #111622a8; }
+    .lr-install-dialog { box-sizing: border-box; width: min(100%, 410px);
+      background: #fff; color: #20263c; border-radius: 26px; padding: 27px;
+      box-shadow: 0 16px 65px #11162266; font: 15px/1.55 system-ui, sans-serif; }
+    .lr-install-symbol { font-size: 34px; color: #4c416f; }
+    .lr-install-dialog h2 { font: 700 23px/1.2 system-ui, sans-serif; margin: 12px 0; }
+    .lr-install-dialog p { margin: 12px 0; }
+    .lr-install-note { color: #495166; font-size: 13px; }
+    .lr-install-done { width: 100%; margin-top: 13px; }
+    @media (prefers-color-scheme: dark) {
+      .lr-install-banner, .lr-install-dialog { background: #1d2534;
+        border-color: #424357; color: #f5f3fc; }
+      .lr-install-close, .lr-install-note { color: #d0cde0; }
+      .lr-install-action, .lr-install-done { background: #c7b6f0; color: #20263c; }
+    }
+    @media (display-mode: standalone) {
+      .lr-install-banner, .lr-install-backdrop { display: none !important; }
+    }
+    @media (max-width: 350px) {
+      .lr-install-banner { gap: 6px; padding-left: 11px; font-size: 12px; }
+      .lr-install-action { padding-inline: 9px; }
+    }
   </style>
 </head>
 <body>
   <div id="loading" role="status" aria-label="Loading Little Rest">☾ &nbsp; Little Rest</div>
   <script src="storage_probe.js"></script>
+  <script src="install_prompt.js" defer></script>
   <script src="flutter_bootstrap.js" async></script>
   <script>
     if ('serviceWorker' in navigator && location.protocol === 'https:') {

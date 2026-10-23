@@ -8,16 +8,27 @@
 
 A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle trends, and a private journal that can catch up after a night offline.
 
-**Flutter · Material 3 · Android + iOS source · Firebase**
+**Flutter Web · Install on Android + iPhone · Firebase Spark**
 
-**Family Lite candidate: 0.2.0-beta.2 (development)** · [Changelog](CHANGELOG.md) · [Family Lite notes](docs/releases/0.2.0-beta.2.md)
+**Mobile PWA candidate: 0.3.0-beta.3 (private QA)** · [Changelog](CHANGELOG.md) · [Release notes](docs/releases/0.3.0-beta.3.md)
 
-[See the app](#the-experience) · [Try on Android](#try-it) · [How it works](#how-it-works) · [Development](#development)
+[Install on any phone](#install-on-a-phone) · [See the app](#the-experience) · [How it works](#how-it-works) · [Development](#development)
 
 </div>
 
 > [!IMPORTANT]
-> **Private preview, not a public release.** Use **synthetic sleep data only**. Spark Family Lite Android beta.2 is available for QA and has passed two-account emulator security/sync tests. An installable iPhone Home Screen PWA is being validated in [PR #33](https://github.com/analienx/baby-sleep-tracker/pull/33), and live two-device iPhone/Android acceptance is pending. This is not an App Store release.
+> **Private preview, not a public release.** Use **synthetic sleep data only**. The **same installable PWA serves Android Chrome and iPhone Safari** at [little-rest-ios-qa.web.app](https://little-rest-ios-qa.web.app). Multi-account/multi-baby sharing runs on Firebase Spark; signed native Android remains an optional QA route. Real two-device Safari/Chrome installation, offline recovery, App Check and privacy G2/G3 acceptance remain open.
+
+## Install on a phone
+
+**One app, one URL:** **[Open Little Rest](https://little-rest-ios-qa.web.app)**
+
+| Android (Chrome) | iPhone (Safari) |
+| --- | --- |
+| Open the URL → tap the in-app **Install** control or Chrome **⋮ → Add to Home screen → Install** | Open the URL → **Share → Add to Home Screen → Open as Web App → Add** |
+| Runs from its own Home Screen icon; native APK optional | Runs from its own Home Screen icon; no Apple Developer account needed |
+
+Both platforms have the same baby selector, immutable sleep history, email-verified identity, caregiver permissions and Firebase backend. Already using the native Android staging app? **Do not uninstall** before verifying your records have synced under a recoverable account. [Install, offline and recovery details](docs/pwa/MOBILE_INSTALL.md).
 
 ## The experience
 
@@ -54,7 +65,13 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 
 Android may require **Install unknown apps** permission for the browser or file manager opening the APK. It installs as `com.analienx.baby_sleep_tracker.staging` and does not overwrite the memory-only preview. No Google Play / App Store listing exists yet.
 
-**Spark Family Lite (development):** each parent has a separate email-verified Firebase account. The owner approves the other parent's UID, who joins the same append-only journal without sharing a password. Firestore Security Rules enforce membership and revocation **on the free Spark project**—no Cloud Functions required. [Setup, limitations and security gates](docs/SPARK_FAMILY_LITE.md). The Family Lite signed APK is available for synthetic QA under [beta.2 staging build #39746741570](https://github.com/analienx/baby-sleep-tracker/actions/runs/39746741570). Do not treat this as a production release.
+**Spark Family Lite:** each parent has a separate email-verified Firebase account. The owner approves the other parent's UID, who joins the same append-only journal without sharing a password. Firestore Security Rules enforce membership and revocation **on the free Spark project**—no Cloud Functions required. [Setup, limitations and security gates](docs/SPARK_FAMILY_LITE.md). The Family Lite signed APK is available for synthetic QA under [beta.2 staging build #39746741570](https://github.com/analienx/baby-sleep-tracker/actions/runs/39746741570). Do not treat this as a production release.
+
+### Separate people and multiple babies
+
+**One Firebase Spark project can serve many independent households.** Each person has their own Firebase account; each household owns private data. Approved caregivers collaborate on that household's records. The **0.3 multi-baby candidate** adds owner-managed baby names and a visible baby selector, with **individual history and trends per baby**. Existing journals become *Baby 1* automatically, without moving or overwriting data.
+
+[How multi-baby isolation works](docs/MULTI_BABY_SPARK.md) · [Account safety and pairing](docs/SPARK_FAMILY_LITE.md)
 
 ## How it works
 
@@ -75,7 +92,8 @@ flowchart LR
 | --- | --- | --- | --- |
 | **Preview** | In memory only; disappears at restart | None | UI smoke-tested |
 | **Personal staging** | Firebase Auth + offline Firestore journal | One account, not a household | Emulator CI and Android install/launch verified; physical data QA pending |
-| **Spark Family Lite** | Shared Firestore journal, immutable revisions, account-scoped grants | Owner-approved single caregiver; no billing | Implementation and security CI in PR #32; live QA pending |
+| **Spark Family Lite** | Separate Firebase accounts; private household and owner-approved caregiver grants | Shared sleep history, no billing | Android staging tested; physical two-device signoff pending |
+| **Multi-baby v0.3 candidate** | One journal per baby under the same household; preserves Baby 1 | Owner manages profiles; caregivers select and record by child | [PR #34](https://github.com/analienx/baby-sleep-tracker/pull/34), security and device review pending |
 | **F2 Cloud Functions** | Admin SDK managed household journal | Full callable invites/admin cleanup | Optional alternative, not deployed |
 
 The app uses **Flutter/Dart, Riverpod, go_router, Firebase Auth and Cloud Firestore**. No background timer is kept alive to estimate sleep time: durations derive from stored timestamps. Conflicting edits are modeled as operations, not silent last-write-wins replacement.

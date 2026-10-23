@@ -171,17 +171,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 if (kIsWeb && widget.sparkFamilyLiteAvailable) ...[
                   const SizedBox(height: 14),
                   _SettingsSection(
-                    title: 'Install on iPhone',
+                    title: 'Install on your phone',
                     description:
-                        'In Safari, tap Share → Add to Home Screen → '
-                        'Open as Web App. Then open Little Rest from its icon.',
+                        'Android Chrome: menu ⋮ → Add to Home screen → Install. '
+                        'iPhone Safari: Share → Add to Home Screen → '
+                        'Open as Web App. Both use the same Little Rest account.',
                     child: const ListTile(
                       leading: Icon(Icons.add_to_home_screen_rounded),
-                      title: Text('No App Store or weekly renewal'),
+                      title: Text('One app for Android and iPhone'),
                       subtitle: Text(
                         'Protect your account with a verified '
-                        'email before changing phones. iPhone may clear '
-                        'offline website data; wait for Synced before '
+                        'email before changing phones. Mobile browsers may '
+                        'clear offline data; wait for Synced before '
                         'closing the app.',
                       ),
                     ),

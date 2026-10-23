@@ -141,6 +141,41 @@ service cloud.firestore {
           && request.resource.data.requestedAt == request.time;
         allow update, delete: if false;
       }
+      match /babies/{babyId} {
+        // The virtual primary profile is optional: its operations remain at
+        // the legacy root. Additional babies require a real profile document.
+        allow get, list: if sparkCollaborator(uid);
+        allow create: if sparkOwner(uid) && sparkActive(uid)
+          && babyId.size() >= 1 && babyId.size() <= 128
+          && request.resource.data.keys().hasOnly(['name', 'createdAt'])
+          && request.resource.data.keys().hasAll(['name', 'createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.createdAt == request.time;
+        allow update: if sparkOwner(uid) && sparkActive(uid)
+          && request.resource.data.diff(resource.data)
+             .affectedKeys().hasOnly(['name'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40;
+        // Profiles may only be removed during fenced full account erasure.
+        allow delete: if sparkOwner(uid) && !sparkActive(uid);
+        match /operations/{operationId} {
+          // The special "primary" baby always writes to the legacy root.
+          // Deny a competing nested primary journal to avoid split histories.
+          allow get, list: if babyId != 'primary'
+            && sparkCollaborator(uid)
+            && exists(/databases/$(database)/documents/personalSleep/$(uid)/babies/$(babyId));
+          allow create: if babyId != 'primary'
+            && sparkActive(uid) && sparkCollaborator(uid)
+            && exists(/databases/$(database)/documents/personalSleep/$(uid)/babies/$(babyId))
+            && operationId.size() >= 1 && operationId.size() <= 128
+            && validOperation(operationId);
+          allow update: if false;
+          allow delete: if sparkOwner(uid) && !sparkActive(uid);
+        }
+      }
       match /operations/{operationId} {
         // Owner can still read/delete during fenced online erasure; caregiver
         // is denied immediately once the fence is committed.

@@ -17,12 +17,16 @@ const usePersonalStaging = bool.fromEnvironment('USE_PERSONAL_STAGING');
 const usePersonalEmulator = bool.fromEnvironment('USE_PERSONAL_EMULATOR');
 // Optional Spark Family Lite rollout; disabled for live staging until Rule QA.
 const useSparkFamilyLite = bool.fromEnvironment('USE_SPARK_FAMILY_LITE');
-// Explicit, separately deployed iPhone Home Screen PWA; Android is unchanged.
-const useIosPwa = bool.fromEnvironment('USE_IOS_PWA');
+// Unified Android + iPhone browser-first distribution. Keep the old define
+// for staged clients built from the existing shared Flutter web channel.
+const useMobilePwa =
+    bool.fromEnvironment('USE_MOBILE_PWA') ||
+    bool.fromEnvironment('USE_IOS_PWA');
+const useIosPwa = useMobilePwa;
 
 Future<PersonalCloudClient> connectPersonalCloud() async {
   if (usePersonalStaging == usePersonalEmulator ||
-      (kIsWeb && (!useIosPwa || !useSparkFamilyLite)) ||
+      (kIsWeb && (!useMobilePwa || !useSparkFamilyLite)) ||
       (!kIsWeb && (kReleaseMode || (!Platform.isAndroid && !Platform.isIOS)))) {
     throw StateError(
       'Personal cloud is only available in an explicit mobile debug build.',
@@ -31,7 +35,7 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
 
   if (kIsWeb && !await canPersistWebData()) {
     throw StateError(
-      'Safari cannot use IndexedDB on this device. '
+      'This browser cannot open IndexedDB on this device. '
       'Do not record sleep until browser storage is enabled.',
     );
   }
@@ -58,7 +62,7 @@ Future<PersonalCloudClient> connectPersonalCloud() async {
   }
   final auth = FirebaseAuth.instanceFor(app: app);
   if (kIsWeb) {
-    // Home Screen apps need the same recoverable Auth UID across relaunches.
+    // Installed PWAs and browser tabs need the same recoverable Auth UID.
     await auth.setPersistence(Persistence.LOCAL);
   }
   final firestore = FirebaseFirestore.instanceFor(app: app);

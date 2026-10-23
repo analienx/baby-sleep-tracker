@@ -2,6 +2,52 @@
 
 Little Rest uses [Semantic Versioning](https://semver.org/). Mobile build metadata is appended after `+`; pre-release builds are **not** production-approved. Product screenshots and summaries describe reviewed capabilities, not deployment guarantees.
 
+## [0.3.0-beta.3] — 2026-10-23 (browser-first Android and iPhone PWA)
+
+**One installable mobile web app on Firebase Spark.** Android Chrome and iPhone Safari share the same source, family accounts and child-specific journals, with native Android as optional QA distribution.
+
+### Added
+- Android install prompt (when Chromium offers it), manual iPhone Add to Home Screen guidance, installed-mode suppression and dismissible premium-styled mobile install card.
+- Cross-platform browser-first runtime alias `USE_MOBILE_PWA`, revised Settings instructions, and a single Android/iPhone installation handbook.
+- GitHub-hosted behavioral tests for installation, dismissal and standalone mode; artifact verification for the installation script and stable PWA identity.
+
+### Retained limitations
+- No guaranteed background sync, web push, or indefinite mobile browser offline storage. Use verified accounts and check server ACK before treating a record as safely backed up.
+- Real installed Android Chrome and iPhone Safari E2E, App Check/privacy and G2/G3 remain release blockers. Staging only.
+
+---
+
+## [0.3.0-beta.2] — 2026-10-23 (private cross-platform QA)
+
+### Improved
+- Trends now compares only days with actual sleep entries rather than drawing a blank seven-row chart. Missing days are explicitly unknown, not zero sleep.
+- Relative recorded-sleep bars have a minimum one-hour display scale (not a sleep target), a nonzero painted fill, distinct active-day coloring, accessible labels and responsive date/value text.
+- Mobile-width regression tests check 390px layout, sparse weeks and visible chart fill. Android and iPhone Home Screen web use the same Flutter widget.
+- Multi-baby Firestore Rules and separate iPhone QA Hosting can deploy on Firebase Spark, without affecting the account-deletion website.
+
+### Release gates
+- Draft PR #34 only. Signed Android, real-device visual smoke, physical iPhone Safari offline/reconnect and independent privacy/App Check acceptance remain necessary. Do not claim production approval.
+
+---
+
+## [0.3.0-beta.1] — 2026-10-22 (internal QA candidate)
+
+**Multiple babies per household, separate accounts per family.** Draft [PR #34](https://github.com/analienx/baby-sleep-tracker/pull/34), built on the Android Family Lite and iPhone Home Screen PWA.
+
+### Added
+- Owner-created baby profiles, owner-only rename, a clearly visible baby selector on Today, History and Trends. Authorized caregivers can track each child without exchanging logins.
+- Individual immutable Firestore sleep journal for each extra baby, with household-scoped caregiver permissions and actor attribution; unrelated families remain segregated by Firebase UID.
+- Legacy Baby 1 records retain their exact original Firestore path and operation history, with **no bulk migration**.
+- Restore each user's last selected baby per signed-in UID and household owner; prevent recording if a saved non-primary child cannot be verified after relaunch.
+- Account erasure recursively deletes all child journals/profiles behind the existing irreversible server deletion fence.
+- Adversarial multi-child Firestore Rules and baby-selector widget regression; [multi-baby architecture and QA gates](docs/MULTI_BABY_SPARK.md).
+
+### Not yet approved
+- Physical two-account Android + iPhone Family Lite testing, multi-baby offline/reconnect and deletion stress tests, App Check enforcement and independent privacy G2/G3 review. **Synthetic data only.**
+- Deleting an individual baby or migrating old records between babies is deliberately unsupported to avoid accidental data loss.
+
+---
+
 ## [0.2.0-beta.2] — 2026-10-22 (internal QA candidate)
 
 **Spark Family Lite; separate parent accounts without Blaze or Cloud Functions.** This version is in draft PR #32, not a public release. The previous beta.1 personal staging app remains available.

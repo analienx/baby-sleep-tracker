@@ -8,6 +8,7 @@ import '../../../app/app.dart';
 import '../../../app/providers.dart';
 import '../../sleep/data/firestore_sleep_repository.dart';
 import '../data/personal_cloud_client.dart';
+import '../data/spark_baby_profiles.dart';
 import '../data/spark_family_lite_controller.dart';
 
 /// Rebuilds the repository on every identity change: never keep one user's
@@ -166,28 +167,225 @@ final class _PersonalWorkspace extends StatefulWidget {
 }
 
 final class _PersonalWorkspaceState extends State<_PersonalWorkspace> {
-  late final FirestoreSleepRepository repository =
-      FirestoreSleepRepository.personal(
-        firestore: widget.client.firestore,
-        uid: widget.journalOwnerUid,
-        actorUid: widget.uid,
-        writeBlocked: widget.client.deletionInProgress,
+  late final SparkBabyProfiles? _babies = widget.familyLite == null
+      ? null
+      : SparkBabyProfiles(
+          auth: widget.client.auth,
+          firestore: widget.client.firestore,
+          ownerUid: widget.journalOwnerUid,
+        );
+  StreamSubscription<List<SparkBabyProfile>>? _babySubscription;
+  List<SparkBabyProfile> _profiles = const [SparkBabyProfile.primary];
+  FirestoreSleepRepository? _repository;
+  String? _selectedBabyId;
+  String? _problem;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_babies != null) {
+      _babySubscription = _babies.watch().listen(
+        (values) {
+          if (mounted) setState(() => _profiles = values);
+        },
+        onError: (Object _) {
+          if (mounted) {
+            setState(
+              () => _problem =
+                  'The baby list could not be loaded. Reconnect to continue.',
+            );
+          }
+        },
       );
+    }
+    unawaited(_restoreBaby());
+  }
+
+  void _openBaby(String id) {
+    final previous = _repository;
+    _repository = FirestoreSleepRepository.personal(
+      firestore: widget.client.firestore,
+      uid: widget.journalOwnerUid,
+      actorUid: widget.uid,
+      babyId: id,
+      writeBlocked: widget.client.deletionInProgress,
+    );
+    setState(() {
+      _selectedBabyId = id;
+      _problem = null;
+    });
+    if (previous != null) unawaited(previous.dispose());
+  }
+
+  Future<void> _restoreBaby() async {
+    try {
+      final id = _babies == null
+          ? SparkBabyProfile.primaryId
+          : await _babies.restoreSelection(widget.uid);
+      if (mounted) _openBaby(id);
+    } catch (_) {
+      // Never record into Baby 1 if a previously selected baby cannot be
+      // validated from the server on this phone.
+      if (mounted) {
+        setState(
+          () => _problem =
+              'Could not verify the previously selected baby. '
+              'Reconnect or explicitly select Baby 1.',
+        );
+      }
+    }
+  }
+
+  Future<void> _selectBaby(String id) async {
+    if (_babies == null || id == _selectedBabyId) return;
+    if (!_profiles.any((p) => p.id == id)) return;
+    try {
+      await _babies.saveSelection(widget.uid, id);
+      if (mounted) _openBaby(id);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () =>
+              _problem = 'Unable to save baby selection. Reconnect and retry.',
+        );
+      }
+    }
+  }
+
+  Future<String?> _requestName(
+    BuildContext dialogContext, {
+    required String title,
+    String initial = '',
+  }) {
+    return showDialog<String>(
+      context: dialogContext,
+      builder: (_) => BabyNameDialog(title: title, initial: initial),
+    );
+  }
+
+  void _tell(BuildContext context, String message, {bool long = false}) {
+    if (!context.mounted) return;
+    final duration = Duration(seconds: long ? 10 : 4);
+    final snackBar = SnackBar(content: Text(message), duration: duration);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(snackBar);
+  }
+
+  Future<void> _createBaby(BuildContext context) async {
+    if (_babies == null || !_babies.canManage) return;
+    final name = await _requestName(context, title: 'Add another baby');
+    if (name == null) return;
+    try {
+      final id = await _babies.add(name);
+      if (!mounted) return;
+      // A server-acknowledged document may be ahead of the snapshots stream.
+      setState(
+        () => _profiles = [
+          ..._profiles.where((profile) => profile.id != id),
+          SparkBabyProfile(id: id, name: name.trim()),
+        ],
+      );
+      await _selectBaby(id);
+    } catch (_) {
+      if (context.mounted) {
+        _tell(
+          context,
+          'Could not add the baby. Check the name and connection.',
+        );
+      }
+    }
+  }
+
+  Future<void> _renameBaby(BuildContext context) async {
+    final id = _selectedBabyId;
+    if (id == null || _babies == null || !_babies.canManage) return;
+    final current = _profiles.where((p) => p.id == id).firstOrNull;
+    final name = await _requestName(
+      context,
+      title: 'Rename baby',
+      initial: current?.name ?? '',
+    );
+    if (name == null) return;
+    try {
+      await _babies.rename(id, name);
+    } catch (_) {
+      if (context.mounted) {
+        _tell(
+          context,
+          'Could not rename the baby. Check the connection.',
+          long: true,
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
-    unawaited(repository.dispose());
+    unawaited(_babySubscription?.cancel() ?? Future<void>.value());
+    if (_repository != null) unawaited(_repository!.dispose());
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => ProviderScope(
-    overrides: [sleepRepositoryProvider.overrideWithValue(repository)],
-    child: BabySleepApp(
-      personalClient: widget.client,
-      sparkFamilyLite: widget.familyLite,
-    ),
-  );
+  Widget build(BuildContext context) {
+    if (_problem != null) {
+      return MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.child_care_rounded, size: 40),
+                    const SizedBox(height: 12),
+                    Text(_problem!, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => unawaited(_restoreBaby()),
+                      child: const Text('Retry online'),
+                    ),
+                    TextButton(
+                      onPressed: () => unawaited(_resetToPrimary()),
+                      child: const Text('Explicitly select Baby 1'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_repository == null) {
+      return const MaterialApp(
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+    return ProviderScope(
+      key: ValueKey('${widget.journalOwnerUid}:$_selectedBabyId'),
+      overrides: [sleepRepositoryProvider.overrideWithValue(_repository!)],
+      child: BabySleepApp(
+        personalClient: widget.client,
+        sparkFamilyLite: widget.familyLite,
+        babyProfiles: _babies == null ? null : _profiles,
+        selectedBabyId: _selectedBabyId,
+        onBabyChanged: _selectBaby,
+        onAddBaby: _babies?.canManage == true ? _createBaby : null,
+        onRenameBaby: _babies?.canManage == true ? _renameBaby : null,
+      ),
+    );
+  }
+
+  Future<void> _resetToPrimary() async {
+    try {
+      await _babies?.saveSelection(widget.uid, SparkBabyProfile.primaryId);
+      if (mounted) _openBaby(SparkBabyProfile.primaryId);
+    } catch (_) {
+      if (mounted) setState(() => _problem = 'Reconnect and try again.');
+    }
+  }
 }
 
 /// A signed-out session may be an account-restoration journey: do not silently
@@ -308,5 +506,59 @@ final class _SignedOutScreenState extends State<_SignedOutScreen> {
         ),
       ),
     ),
+  );
+}
+
+/// Name prompt for adding or renaming a baby. The text controller is owned
+/// by the dialog state and disposed only after the route is removed:
+/// disposing it in the caller's finally (on dialog completion) raced the
+/// exit animation and flashed a used-after-disposed error. Pressing the
+/// keyboard Enter/Done action submits intentionally, exactly like Save.
+final class BabyNameDialog extends StatefulWidget {
+  const BabyNameDialog({super.key, required this.title, required this.initial});
+
+  final String title;
+  final String initial;
+
+  @override
+  State<BabyNameDialog> createState() => _BabyNameDialogState();
+}
+
+final class _BabyNameDialogState extends State<BabyNameDialog> {
+  late final TextEditingController _name;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.initial);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(context, _name.text);
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: _name,
+      autofocus: true,
+      maxLength: 40,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => _submit(),
+      decoration: const InputDecoration(labelText: 'Baby name'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('Save')),
+    ],
   );
 }

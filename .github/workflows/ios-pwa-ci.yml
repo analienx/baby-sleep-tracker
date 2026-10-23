@@ -1,13 +1,15 @@
-name: Little Rest iPhone PWA — build and browser tests
+name: Little Rest Mobile PWA — Android and iPhone web CI
 
 on:
   push:
-    branches: [feat/ios-home-screen-pwa]
+    branches: [feat/ios-home-screen-pwa, feat/multi-baby-spark-family]
   pull_request:
     paths:
       - 'lib/**'
       - 'web/**'
       - 'scripts/generate_pwa_worker.py'
+      - 'web/install_prompt.js'
+      - 'scripts/pwa_install_test.mjs'
       - 'firebase.pwa.json'
       - '.github/workflows/ios-pwa-ci.yml'
   workflow_dispatch:
@@ -36,13 +38,19 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Format and analyze
         run: |
-          dart format --output=none --set-exit-if-changed lib
+          if ! dart format --output=none --set-exit-if-changed lib; then
+            dart format lib
+            git diff -- lib
+            exit 1
+          fi
           flutter analyze --no-pub
       - name: Flutter unit tests
         run: flutter test --no-pub
+      - name: Cross-platform install behavior tests
+        run: node --test scripts/pwa_install_test.mjs
       - name: Compile registered Spark QA PWA (NOT automatically deployed)
         run: |
-          python3 -c "from pathlib import Path; import json; p=Path('web/firebase-staging.defines.json'); c=json.loads(p.read_text(encoding='utf-8-sig')); assert c['FIREBASE_PROJECT_ID']=='little-rest-stage-jh-261020'; assert c['FIREBASE_WEB_APP_ID']=='1:256303473837:web:a78e23179e13f4ed6d9224'; assert all(c[x]=='true' for x in ('USE_IOS_PWA','USE_PERSONAL_STAGING','USE_SPARK_FAMILY_LITE')); p.write_text(json.dumps(c),encoding='utf-8')"
+          python3 -c "from pathlib import Path; import json; p=Path('web/firebase-staging.defines.json'); c=json.loads(p.read_text(encoding='utf-8-sig')); assert c['FIREBASE_PROJECT_ID']=='little-rest-stage-jh-261020'; assert c['FIREBASE_WEB_APP_ID']=='1:256303473837:web:a78e23179e13f4ed6d9224'; assert all(c[x]=='true' for x in ('USE_MOBILE_PWA','USE_PERSONAL_STAGING','USE_SPARK_FAMILY_LITE')); p.write_text(json.dumps(c),encoding='utf-8')"
           flutter build web --release --no-pub --pwa-strategy=none \
             --dart-define-from-file=web/firebase-staging.defines.json
           python3 scripts/generate_pwa_worker.py build/web
@@ -50,6 +58,10 @@ jobs:
         run: |
           python3 -c "from pathlib import Path; import json; r=Path('build/web'); m=json.loads((r/'manifest.json').read_text()); assert m['display']=='standalone'; assert m['start_url']=='/'; assert (r/'pwa-sw.js').exists(); assert (r/'main.dart.js').exists(); assert 'little-rest-shell-' in (r/'pwa-sw.js').read_text()"
           node --check build/web/pwa-sw.js
+          node --check build/web/install_prompt.js
+          grep -F 'install_prompt.js' build/web/index.html
+          grep -F '/install_prompt.js' build/web/pwa-sw.js
+          grep -F "url.pathname === '/main.dart.js'" build/web/pwa-sw.js
       - name: Retain actual Spark staging PWA for manual reviewed deployment
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

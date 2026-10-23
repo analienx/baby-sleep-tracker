@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:baby_sleep_tracker/app/app.dart';
 import 'package:baby_sleep_tracker/app/providers.dart';
 import 'package:baby_sleep_tracker/app/theme.dart';
+import 'package:baby_sleep_tracker/features/personal/data/spark_baby_profiles.dart';
 import 'package:baby_sleep_tracker/features/sleep/data/preview_sleep_repository.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_ledger.dart';
 import 'package:baby_sleep_tracker/features/sleep/domain/sleep_repository.dart';
@@ -18,18 +19,27 @@ import 'package:shared_preferences_platform_interface/types.dart';
 
 import 'support/fake_clock.dart';
 
-Widget appForTest({PreviewSleepRepository? repository, FakeClock? clock}) =>
-    ProviderScope(
-      overrides: [
-        clockProvider.overrideWithValue(
-          clock ?? FakeClock(DateTime.utc(2026, 10, 19, 10)),
-        ),
-        sleepRepositoryProvider.overrideWithValue(
-          repository ?? PreviewSleepRepository(),
-        ),
-      ],
-      child: const BabySleepApp(),
-    );
+Widget appForTest({
+  PreviewSleepRepository? repository,
+  FakeClock? clock,
+  List<SparkBabyProfile>? profiles,
+  String? selectedBaby,
+  Future<void> Function(String)? onBabyChanged,
+}) => ProviderScope(
+  overrides: [
+    clockProvider.overrideWithValue(
+      clock ?? FakeClock(DateTime.utc(2026, 10, 19, 10)),
+    ),
+    sleepRepositoryProvider.overrideWithValue(
+      repository ?? PreviewSleepRepository(),
+    ),
+  ],
+  child: BabySleepApp(
+    babyProfiles: profiles,
+    selectedBabyId: selectedBaby,
+    onBabyChanged: onBabyChanged,
+  ),
+);
 
 void main() {
   setUp(() {
@@ -89,6 +99,30 @@ void main() {
       contrast(scheme.onSecondaryContainer, scheme.secondaryContainer),
       greaterThanOrEqualTo(4.5),
     );
+  });
+
+  testWidgets('Baby switcher makes the current child explicit', (tester) async {
+    final selected = <String>[];
+    await tester.pumpWidget(
+      appForTest(
+        profiles: const [
+          SparkBabyProfile.primary,
+          SparkBabyProfile(id: 'baby-two-2026', name: 'Baby 2'),
+        ],
+        selectedBaby: SparkBabyProfile.primaryId,
+        onBabyChanged: (id) async {
+          selected.add(id);
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(DropdownButton<String>), findsOneWidget);
+    expect(find.text('Baby 1'), findsWidgets);
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Baby 2').last);
+    await tester.pumpAndSettle();
+    expect(selected, ['baby-two-2026']);
   });
 
   testWidgets('Light mode keeps the active sleep panel bright and readable', (
@@ -198,6 +232,73 @@ void main() {
       findsOneWidget,
     );
     handle.dispose();
+  });
+
+  testWidgets('Trends show logged days, not misleading empty full-day bars', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    await repository.put(
+      SleepSession(
+        id: 'thursday',
+        startedAtUtc: DateTime.utc(2026, 10, 22, 8),
+        endedAtUtc: DateTime.utc(2026, 10, 22, 11, 14),
+      ),
+    );
+    await repository.put(
+      SleepSession(
+        id: 'friday',
+        startedAtUtc: DateTime.utc(2026, 10, 23, 3),
+        endedAtUtc: DateTime.utc(2026, 10, 23, 9, 42),
+      ),
+    );
+    await tester.pumpWidget(
+      appForTest(
+        repository: repository,
+        clock: FakeClock(DateTime.utc(2026, 10, 23, 11)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'Today with two recorded sessions must fit a 390px phone',
+    );
+    await tester.tap(find.text('Trends'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'Trends with two logged days must fit a 390px phone',
+    );
+    expect(find.text('2 of 7 days with entries'), findsOneWidget);
+    expect(find.text('6h 42m'), findsWidgets);
+    expect(find.text('3h 14m'), findsWidgets);
+    expect(find.textContaining('5 other days have no entries'), findsOneWidget);
+    expect(
+      find.byType(FractionallySizedBox),
+      findsNWidgets(2),
+      reason: 'Only logged days should have bars; missing days are unknown.',
+    );
+    final loggedDayFill = find.byWidgetPredicate(
+      (widget) =>
+          widget is ColoredBox && widget.color == SleepPalette.daytimeChart,
+    );
+    expect(loggedDayFill, findsOneWidget);
+    expect(
+      tester.getSize(loggedDayFill).height,
+      greaterThanOrEqualTo(9),
+      reason: 'A chart fill must paint, not collapse to zero height.',
+    );
+    expect(tester.getSize(loggedDayFill).width, greaterThan(0));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Appearance changes to dark and can be restored to system', (
