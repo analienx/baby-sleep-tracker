@@ -106,7 +106,7 @@ class _TrendsContent extends StatelessWidget {
     final haveRecords = loggedDays.isNotEmpty;
     final missingDays = days.length - loggedDays.length;
     final longestLoggedDay = loggedDays.fold<int>(
-      1,
+      const Duration(hours: 1).inMicroseconds,
       (maximum, day) => day.recordedSleep.inMicroseconds > maximum
           ? day.recordedSleep.inMicroseconds
           : maximum,
@@ -186,8 +186,8 @@ class _TrendsContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Bars compare logged days, scaled to the longest '
-                    'recorded day—not a sleep target.',
+                    'Bars compare recorded days (minimum 1-hour display '
+                    'scale), not a sleep target.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 18),
@@ -327,7 +327,10 @@ class _DayRow extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: FractionallySizedBox(
                   widthFactor: portion,
-                  child: ColoredBox(color: highlight),
+                  child: SizedBox(
+                    height: 9,
+                    child: ColoredBox(color: highlight),
+                  ),
                 ),
               ),
             ),
