@@ -558,10 +558,7 @@ final class _BabyNameDialogState extends State<BabyNameDialog> {
         onPressed: () => Navigator.pop(context),
         child: const Text('Cancel'),
       ),
-      FilledButton(
-        onPressed: _submit,
-        child: const Text('Save'),
-      ),
+      FilledButton(onPressed: _submit, child: const Text('Save')),
     ],
   );
 }
