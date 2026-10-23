@@ -92,6 +92,96 @@ void main() {
       );
       await ownerLite.initialize();
 
+      // Physical-device regression: exercising the actual nested MaterialApp,
+      // GoRouter, baby selector, ProviderScope replacement and modal overlay
+      // is necessary. Rules-only and callback-only tests miss Flutter's
+      // '_dependents.isEmpty' inherited-widget deactivation assertion.
+      await until(
+        () async => find.byTooltip('Add another baby').evaluate().isNotEmpty,
+        'baby picker owner action is visible',
+      );
+      await tester.tap(find.byTooltip('Add another baby'));
+      await tester.pump(const Duration(milliseconds: 350));
+      await until(
+        () async => find.text('Add another baby').evaluate().isNotEmpty,
+        'baby name dialog',
+      );
+      await tester.enterText(find.byType(TextField).last, 'QA child two');
+      await tester.tap(find.text('Save'));
+      await until(
+        () async => find.text('QA child two').evaluate().isNotEmpty &&
+            find.text('Start sleep').evaluate().isNotEmpty,
+        'second baby repository mounted after dialog',
+      );
+      await tester.tap(find.text('Start sleep'));
+      await until(
+        () async => find.text('Wake up').evaluate().isNotEmpty,
+        'second baby has an active sleep',
+      );
+      // Switch away *while* the child has an active sleep: the other baby
+      // must display its own idle state and never inherit that timer.
+      await tester.tap(find.byType(DropdownButton<String>));
+      await tester.pump(const Duration(milliseconds: 420));
+      await tester.tap(find.text('Baby 1').last);
+      await until(
+        () async => find.text('Start sleep').evaluate().isNotEmpty &&
+            find.text('Wake up').evaluate().isEmpty,
+        'primary baby independent idle state after child switch',
+      );
+      // The same GoRouter shell is exercised across all tabs after switch.
+      await tester.tap(find.text('History').last);
+      await until(
+        () async => find.text('History').evaluate().isNotEmpty,
+        'history tab after baby switch',
+      );
+      await tester.tap(find.text('Trends').last);
+      await tester.pump(const Duration(milliseconds: 450));
+      await tester.tap(find.text('Today').last);
+      await until(
+        () async => find.text('Start sleep').evaluate().isNotEmpty,
+        'primary today tab after route changes',
+      );
+      await tester.tap(find.byType(DropdownButton<String>));
+      await tester.pump(const Duration(milliseconds: 420));
+      await tester.tap(find.text('QA child two').last);
+      await until(
+        () async => find.text('Wake up').evaluate().isNotEmpty,
+        'original second baby active sleep restored after switching',
+      );
+      await tester.tap(find.text('Wake up'));
+      await until(
+        () async => find.text('Start sleep').evaluate().isNotEmpty,
+        'second baby sleep completed',
+      );
+      await ownerDb.waitForPendingWrites();
+      final extraProfiles = await ownerDb
+          .collection('personalSleep')
+          .doc(ownerUid)
+          .collection('babies')
+          .where('name', isEqualTo: 'QA child two')
+          .get(const GetOptions(source: Source.server));
+      expect(extraProfiles.docs.length, 1);
+      final extraJournal = await extraProfiles.docs.single.reference
+          .collection('operations')
+          .get(const GetOptions(source: Source.server));
+      expect(extraJournal.docs, isNotEmpty);
+      expect(
+        extraJournal.docs.map((entry) => entry.data()['actorId']).toSet(),
+        {ownerUid},
+      );
+      expect(
+        (await ownerDb
+                .collection('personalSleep')
+                .doc(ownerUid)
+                .collection('operations')
+                .get(const GetOptions(source: Source.server)))
+            .docs,
+        isEmpty,
+        reason: 'child-specific recording must not touch the legacy root',
+      );
+      expect(tester.takeException(), isNull,
+          reason: 'No inherited-widget deactivation/overlay lifecycle crash');
+
       final secondary = await Firebase.initializeApp(
         name: 'family-lite-second-parent',
         options: app.options,
