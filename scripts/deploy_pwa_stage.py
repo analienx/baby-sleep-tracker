@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deploy an exact green iPhone PWA *push build* to its isolated Spark QA site.
+"""Deploy an exact green Android + iPhone mobile PWA push build to Spark QA.
 
 Requires locally authenticated gh/Firebase CLIs. No secret values are read or
 uploaded. Never deploys Firestore Rules, Functions, or the account-deletion site.
@@ -15,7 +15,7 @@ import sys
 REPO = "analienx/baby-sleep-tracker"
 BRANCH = "feat/ios-home-screen-pwa"
 PROJECT = "little-rest-stage-jh-261020"
-SITE = "little-rest-ios-qa"
+SITE = "little-rest-ios-qa"  # Legacy origin; shared by Android and iPhone.
 WORKFLOW = "ios-pwa-ci.yml"
 REQUIRED = (
     "index.html", "main.dart.js", "flutter_bootstrap.js",
