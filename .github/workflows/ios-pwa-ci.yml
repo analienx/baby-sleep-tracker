@@ -36,7 +36,11 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Format and analyze
         run: |
-          dart format --output=none --set-exit-if-changed lib
+          if ! dart format --output=none --set-exit-if-changed lib; then
+            dart format lib
+            git diff -- lib
+            exit 1
+          fi
           flutter analyze --no-pub
       - name: Flutter unit tests
         run: flutter test --no-pub
