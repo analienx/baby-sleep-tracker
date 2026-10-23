@@ -2,6 +2,19 @@
 
 Little Rest uses [Semantic Versioning](https://semver.org/). Mobile build metadata is appended after `+`; pre-release builds are **not** production-approved. Product screenshots and summaries describe reviewed capabilities, not deployment guarantees.
 
+## [0.3.0-beta.2] — 2026-10-23 (private cross-platform QA)
+
+### Improved
+- Trends now compares only days with actual sleep entries rather than drawing a blank seven-row chart. Missing days are explicitly unknown, not zero sleep.
+- Relative recorded-sleep bars have a minimum one-hour display scale (not a sleep target), a nonzero painted fill, distinct active-day coloring, accessible labels and responsive date/value text.
+- Mobile-width regression tests check 390px layout, sparse weeks and visible chart fill. Android and iPhone Home Screen web use the same Flutter widget.
+- Multi-baby Firestore Rules and separate iPhone QA Hosting can deploy on Firebase Spark, without affecting the account-deletion website.
+
+### Release gates
+- Draft PR #34 only. Signed Android, real-device visual smoke, physical iPhone Safari offline/reconnect and independent privacy/App Check acceptance remain necessary. Do not claim production approval.
+
+---
+
 ## [0.3.0-beta.1] — 2026-10-22 (internal QA candidate)
 
 **Multiple babies per household, separate accounts per family.** Draft [PR #34](https://github.com/analienx/baby-sleep-tracker/pull/34), built on the Android Family Lite and iPhone Home Screen PWA.
