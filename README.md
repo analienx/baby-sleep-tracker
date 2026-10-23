@@ -10,7 +10,7 @@ A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle tren
 
 **Flutter · Material 3 · Android + iOS source · Firebase**
 
-**Multi-baby candidate: 0.3.0-beta.1 (development)** · [Changelog](CHANGELOG.md) · [Release notes](docs/releases/0.3.0-beta.1.md)
+**Multi-baby candidate: 0.3.0-beta.2 (private QA)** · [Changelog](CHANGELOG.md) · [Release notes](docs/releases/0.3.0-beta.2.md)
 
 [See the app](#the-experience) · [Try on Android](#try-it) · [How it works](#how-it-works) · [Development](#development)
 
