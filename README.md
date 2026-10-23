@@ -8,16 +8,27 @@
 
 A thoughtfully quiet sleep tracker: one-tap timing, a clear history, gentle trends, and a private journal that can catch up after a night offline.
 
-**Flutter · Material 3 · Android + iOS source · Firebase**
+**Flutter Web · Install on Android + iPhone · Firebase Spark**
 
-**Multi-baby candidate: 0.3.0-beta.2 (private QA)** · [Changelog](CHANGELOG.md) · [Release notes](docs/releases/0.3.0-beta.2.md)
+**Mobile PWA candidate: 0.3.0-beta.3 (private QA)** · [Changelog](CHANGELOG.md) · [Release notes](docs/releases/0.3.0-beta.3.md)
 
-[See the app](#the-experience) · [Try on Android](#try-it) · [How it works](#how-it-works) · [Development](#development)
+[Install on any phone](#install-on-a-phone) · [See the app](#the-experience) · [How it works](#how-it-works) · [Development](#development)
 
 </div>
 
 > [!IMPORTANT]
-> **Private preview, not a public release.** Use **synthetic sleep data only**. Family Lite Android beta.2 runs on the connected QA phone; the iPhone Home Screen PWA is live at [little-rest-ios-qa.web.app](https://little-rest-ios-qa.web.app). Multi-baby support is being security-tested in [PR #34](https://github.com/analienx/baby-sleep-tracker/pull/34); it is not yet installed or deployed. Real two-device iPhone/Android and App Check acceptance remain open.
+> **Private preview, not a public release.** Use **synthetic sleep data only**. The **same installable PWA serves Android Chrome and iPhone Safari** at [little-rest-ios-qa.web.app](https://little-rest-ios-qa.web.app). Multi-account/multi-baby sharing runs on Firebase Spark; signed native Android remains an optional QA route. Real two-device Safari/Chrome installation, offline recovery, App Check and privacy G2/G3 acceptance remain open.
+
+## Install on a phone
+
+**One app, one URL:** **[Open Little Rest](https://little-rest-ios-qa.web.app)**
+
+| Android (Chrome) | iPhone (Safari) |
+| --- | --- |
+| Open the URL → tap the in-app **Install** control or Chrome **⋮ → Add to Home screen → Install** | Open the URL → **Share → Add to Home Screen → Open as Web App → Add** |
+| Runs from its own Home Screen icon; native APK optional | Runs from its own Home Screen icon; no Apple Developer account needed |
+
+Both platforms have the same baby selector, immutable sleep history, email-verified identity, caregiver permissions and Firebase backend. Already using the native Android staging app? **Do not uninstall** before verifying your records have synced under a recoverable account. [Install, offline and recovery details](docs/pwa/MOBILE_INSTALL.md).
 
 ## The experience
 
