@@ -287,6 +287,17 @@ void main() {
       findsNWidgets(2),
       reason: 'Only logged days should have bars; missing days are unknown.',
     );
+    final loggedDayFill = find.byWidgetPredicate(
+      (widget) =>
+          widget is ColoredBox && widget.color == SleepPalette.daytimeChart,
+    );
+    expect(loggedDayFill, findsOneWidget);
+    expect(
+      tester.getSize(loggedDayFill).height,
+      greaterThanOrEqualTo(9),
+      reason: 'A chart fill must paint, not collapse to zero height.',
+    );
+    expect(tester.getSize(loggedDayFill).width, greaterThan(0));
     expect(tester.takeException(), isNull);
   });
 
