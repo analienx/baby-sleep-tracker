@@ -110,7 +110,8 @@ void main() {
       await tester.enterText(find.byType(TextField).last, 'QA child two');
       await tester.tap(find.text('Save'));
       await until(
-        () async => find.text('QA child two').evaluate().isNotEmpty &&
+        () async =>
+            find.text('QA child two').evaluate().isNotEmpty &&
             find.text('Start sleep').evaluate().isNotEmpty,
         'second baby repository mounted after dialog',
       );
@@ -125,7 +126,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 420));
       await tester.tap(find.text('Baby 1').last);
       await until(
-        () async => find.text('Start sleep').evaluate().isNotEmpty &&
+        () async =>
+            find.text('Start sleep').evaluate().isNotEmpty &&
             find.text('Wake up').evaluate().isEmpty,
         'primary baby independent idle state after child switch',
       );
@@ -180,8 +182,11 @@ void main() {
         isEmpty,
         reason: 'child-specific recording must not touch the legacy root',
       );
-      expect(tester.takeException(), isNull,
-          reason: 'No inherited-widget deactivation/overlay lifecycle crash');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'No inherited-widget deactivation/overlay lifecycle crash',
+      );
 
       final secondary = await Firebase.initializeApp(
         name: 'family-lite-second-parent',
