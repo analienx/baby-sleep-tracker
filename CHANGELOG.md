@@ -2,6 +2,21 @@
 
 Little Rest uses [Semantic Versioning](https://semver.org/). Mobile build metadata is appended after `+`; pre-release builds are **not** production-approved. Product screenshots and summaries describe reviewed capabilities, not deployment guarantees.
 
+## [0.3.0-beta.3] — 2026-10-23 (browser-first Android and iPhone PWA)
+
+**One installable mobile web app on Firebase Spark.** Android Chrome and iPhone Safari share the same source, family accounts and child-specific journals, with native Android as optional QA distribution.
+
+### Added
+- Android install prompt (when Chromium offers it), manual iPhone Add to Home Screen guidance, installed-mode suppression and dismissible premium-styled mobile install card.
+- Cross-platform browser-first runtime alias `USE_MOBILE_PWA`, revised Settings instructions, and a single Android/iPhone installation handbook.
+- GitHub-hosted behavioral tests for installation, dismissal and standalone mode; artifact verification for the installation script and stable PWA identity.
+
+### Retained limitations
+- No guaranteed background sync, web push, or indefinite mobile browser offline storage. Use verified accounts and check server ACK before treating a record as safely backed up.
+- Real installed Android Chrome and iPhone Safari E2E, App Check/privacy and G2/G3 remain release blockers. Staging only.
+
+---
+
 ## [0.3.0-beta.2] — 2026-10-23 (private cross-platform QA)
 
 ### Improved
