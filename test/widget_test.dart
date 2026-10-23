@@ -234,6 +234,52 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('Trends show logged days, not misleading empty full-day bars', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final repository = PreviewSleepRepository();
+    addTearDown(repository.dispose);
+    await repository.put(
+      SleepSession(
+        id: 'thursday',
+        startedAtUtc: DateTime.utc(2026, 10, 22, 8),
+        endedAtUtc: DateTime.utc(2026, 10, 22, 11, 14),
+      ),
+    );
+    await repository.put(
+      SleepSession(
+        id: 'friday',
+        startedAtUtc: DateTime.utc(2026, 10, 23, 3),
+        endedAtUtc: DateTime.utc(2026, 10, 23, 9, 42),
+      ),
+    );
+    await tester.pumpWidget(
+      appForTest(
+        repository: repository,
+        clock: FakeClock(DateTime.utc(2026, 10, 23, 11)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trends'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 of 7 days with entries'), findsOneWidget);
+    expect(find.text('6h 42m'), findsWidgets);
+    expect(find.text('3h 14m'), findsWidgets);
+    expect(find.textContaining('5 other days have no entries'), findsOneWidget);
+    expect(
+      find.byType(FractionallySizedBox),
+      findsNWidgets(2),
+      reason: 'Only logged days should have bars; missing days are unknown.',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Appearance changes to dark and can be restored to system', (
     tester,
   ) async {
